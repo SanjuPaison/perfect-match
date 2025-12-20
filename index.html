@@ -54,6 +54,7 @@ body {
   border-radius: 14px;
   background-color: #AB4A4F;
   color: #ffffff;
+  box-sizing: border-box;
 }
 h1 {
   font-size: 20px;
@@ -66,10 +67,11 @@ label {
   font-weight: 600;
 }
 input, select, button {
-  width: 100%;
+  width: calc(100% - 20px);
   padding: 10px;
-  margin-bottom: 16px;
+  margin: 0 0 16px 0;
   font-size: 15px;
+  box-sizing: border-box;
 }
 button {
   background-color: #ffffff;
@@ -81,6 +83,7 @@ button {
 #result {
   margin-top: 16px;
   font-size: 13px;
+  text-align: center;
 }
 .warning {
   font-size: 12px;
@@ -146,7 +149,7 @@ const ORB = 8;
 let eph = [];
 let loaded = false;
 
-// Load ephemeris once
+// Load ephemeris
 fetch(CSV)
   .then(r => r.text())
   .then(t => {
@@ -164,11 +167,19 @@ fetch(CSV)
     loaded = true;
   });
 
-function inRange(a, b){
-  const d = Math.abs(a - b);
-  return d <= ORB || Math.abs(d - 360) <= ORB;
+// Handle 360 degree wrapping
+function inRange360(pos, min, max){
+  if(min <= max) return pos >= min && pos <= max;
+  return pos >= min || pos <= max;
 }
 
+// Round to nearest 3 hours
+function roundTo3Hours(ms){
+  const three = 3 * 60 * 60 * 1000;
+  return Math.round(ms / three) * three;
+}
+
+// Find nearest ephemeris row
 function nearestRow(time){
   let best = eph[0];
   let min = Math.abs(best.t - time);
@@ -180,11 +191,6 @@ function nearestRow(time){
     }
   }
   return best;
-}
-
-function roundTo3Hours(ms){
-  const three = 3 * 60 * 60 * 1000;
-  return Math.round(ms / three) * three;
 }
 
 function findMatches(){
@@ -204,39 +210,33 @@ function findMatches(){
   localStorage[key] = 1;
 
   const birthMs = new Date(dob.value + "T" + tob.value + "Z").getTime();
-  const rounded = roundTo3Hours(birthMs);
-  const base = nearestRow(rounded);
+  const base = nearestRow(roundTo3Hours(birthMs));
 
-  // Step 1: calculate ranges
-  let venusMin, venusMax, otherMin, otherMax;
+  let venusPos, otherPos;
   if(g === "male"){
-    venusMin = (base.venus - ORB + 360) % 360;
-    venusMax = (base.venus + ORB) % 360;
-    otherMin = (base.moon - ORB + 360) % 360;
-    otherMax = (base.moon + ORB) % 360;
+    venusPos = base.venus;
+    otherPos = base.sun;
   } else {
-    venusMin = (base.venus - ORB + 360) % 360;
-    venusMax = (base.venus + ORB) % 360;
-    otherMin = (base.sun - ORB + 360) % 360;
-    otherMax = (base.sun + ORB) % 360;
+    venusPos = base.venus;
+    otherPos = base.moon;
   }
 
-  function inRange360(pos, min, max){
-    if(min < max) return pos >= min && pos <= max;
-    return pos >= min || pos <= max;
-  }
+  // Calculate ranges
+  let venusMin = (otherPos - ORB + 360) % 360;
+  let venusMax = (otherPos + ORB) % 360;
+  let otherMin = (venusPos - ORB + 360) % 360;
+  let otherMax = (venusPos + ORB) % 360;
 
-  // Step 2: filter by venus range first
+  // Step 1: filter by venus range
   let stage1 = eph.filter(r => inRange360(r.venus, venusMin, venusMax));
 
-  // Step 3: filter by other range
+  // Step 2: filter by other range
   let stage2 = stage1.filter(r => {
     if(g === "male") return inRange360(r.moon, otherMin, otherMax);
     return inRange360(r.sun, otherMin, otherMax);
   });
 
   const dates = [...new Set(stage2.map(r => r.d.split(" ")[0]))];
-
   result.innerHTML = dates.length
     ? dates.join("<br>")
     : "No perfect matches found in this date range.";
