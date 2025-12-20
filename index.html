@@ -2,137 +2,251 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Perfect Match</title>
 
-<!-- MATCH DAILY FORECAST STYLE -->
-<link rel="stylesheet" href="style.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
 
-<!-- Astronomy Engine (free GitHub-based library) -->
-<script src="https://cdn.jsdelivr.net/npm/astronomy-engine@2.1.0/astronomy.min.js"></script>
+<style>
+html, body {
+  height: 100%;
+  margin: 0;
+  background-color: #AB4A4F;
+  font-family: 'Open Sans', sans-serif;
+  line-height: 150%;
+  letter-spacing: 1.5px;
+}
 
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+body {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  flex-direction: column;
+  padding: 20px;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+
+.header {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.header img {
+  height: 40px;
+}
+
+.header a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #ffffff;
+  font-weight: 600;
+  text-decoration: none;
+  font-size: 17px;
+}
+
+.tool {
+  width: 100%;
+  max-width: 420px;
+  padding: 24px;
+  border: 2px solid #ffffff;
+  border-radius: 14px;
+  background-color: #AB4A4F;
+  color: #ffffff;
+  box-sizing: border-box;
+}
+
+h1 {
+  font-size: 20px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+input, select, button {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 16px;
+  font-size: 15px;
+  font-family: 'Open Sans', sans-serif;
+  box-sizing: border-box;
+}
+
+button {
+  background-color: #ffffff;
+  color: #AB4A4F;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+#result {
+  margin-top: 16px;
+  text-align: justify;
+}
+
+.forecast-heading {
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.forecast-text {
+  font-size: 13px;
+}
+
+.site-link {
+  margin-top: 24px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.site-link a {
+  color: #ffffff;
+  text-decoration: none;
+}
+</style>
 </head>
 
 <body>
 
-<div class="tool-container">
+<div class="header site-link">
+  <a href="https://lifeprediction.net">
+    <img src="https://assets.nicepagecdn.com/0b5dbf35/6598838/images/Untitled111.png">
+    LIFE PREDICTION
+  </a>
+</div>
 
-  <img src="logo.png" class="logo" alt="Logo">
+<div class="tool">
+<h1>PERFECT MATCH</h1>
 
-  <h1>Perfect Match</h1>
+<label>GENDER</label>
+<select id="gender">
+  <option value="male">Male</option>
+  <option value="female">Female</option>
+</select>
 
-  <p class="warning">
-    ⚠️ Birth time must be entered in UTC/GMT.<br>
-    ⚠️ Only one submission per person per day. Double-check details before submitting.
-  </p>
+<label>DATE OF BIRTH</label>
+<input type="date" id="dob">
 
-  <label>Email</label>
-  <input id="email" type="email" required>
+<label>TIME OF BIRTH</label>
+<input type="time" id="tob">
 
-  <label>Gender</label>
-  <select id="gender">
-    <option value="male">Male</option>
-    <option value="female">Female</option>
-  </select>
+<label>EMAIL</label>
+<input type="email" id="email">
 
-  <label>Date of Birth</label>
-  <input id="dob" type="date">
+<button onclick="findMatches()">SEARCH</button>
 
-  <label>Time of Birth (UTC)</label>
-  <input id="tob" type="time">
+<div id="result"></div>
 
-  <button onclick="runMatch()">Search</button>
-
-  <div id="result"></div>
-
+<div class="site-link">
+  <a href="https://lifeprediction.net">LIFEPREDICTION.NET</a>
+</div>
 </div>
 
 <script>
-async function runMatch() {
+const ORB = 8;
+const CSV_FILE = "ephemeris_3hour_1940_2030.csv";
 
-  const result = document.getElementById("result");
-  result.innerText = "Searching…";
+function normalizeDiff(a, b) {
+  let d = Math.abs(a - b);
+  return Math.min(d, 360 - d);
+}
 
-  try {
+function isAspectMatch(a, b) {
+  let d = normalizeDiff(a, b);
+  return d <= ORB || Math.abs(d - 120) <= ORB;
+}
 
-    const email = document.getElementById("email").value.trim();
-    const gender = document.getElementById("gender").value;
-    const dob = document.getElementById("dob").value;
-    const tob = document.getElementById("tob").value;
+function alreadySubmittedToday(email) {
+  let key = "pm_" + email;
+  let last = localStorage.getItem(key);
+  let today = new Date().toISOString().slice(0,10);
+  if (last === today) return true;
+  localStorage.setItem(key, today);
+  return false;
+}
 
-    if (!email || !dob || !tob) {
-      result.innerText = "Please fill all fields.";
-      return;
-    }
+async function loadCSV() {
+  let res = await fetch(CSV_FILE);
+  let text = await res.text();
+  let lines = text.trim().split("\n").slice(1);
+  return lines.map(l => {
+    let c = l.split(",");
+    return {
+      date: c[0],
+      time: c[1],
+      sun: parseFloat(c[2]),
+      moon: parseFloat(c[3]),
+      venus: parseFloat(c[4])
+    };
+  });
+}
 
-    const today = new Date().toISOString().slice(0,10);
-    if (localStorage.getItem(email) === today) {
-      result.innerText = "Only one submission per person per day is allowed.";
-      return;
-    }
+async function findMatches() {
+  let gender = document.getElementById("gender").value;
+  let email = document.getElementById("email").value.trim();
+  let result = document.getElementById("result");
 
-    if (typeof Astronomy === "undefined") {
-      result.innerText = "Astrology engine failed to load. Refresh the page.";
-      return;
-    }
-
-    const birthUTC = new Date(`${dob}T${tob}:00Z`);
-
-    const sun   = Astronomy.EclipticLongitude(Astronomy.Body.Sun, birthUTC);
-    const moon  = Astronomy.EclipticLongitude(Astronomy.Body.Moon, birthUTC);
-    const venus = Astronomy.EclipticLongitude(Astronomy.Body.Venus, birthUTC);
-
-    const response = await fetch("ephemeris_3hour_1940_2030.csv");
-    if (!response.ok) {
-      result.innerText = "Ephemeris file not found.";
-      return;
-    }
-
-    const text = await response.text();
-    const rows = text.split("\n").slice(1);
-
-    const ORB = 8;
-    const matches = new Set();
-
-    function diff(a,b){
-      let d=Math.abs(a-b);
-      return d>180?360-d:d;
-    }
-
-    function hit(a,b){
-      const d=diff(a,b);
-      return d<=ORB || Math.abs(d-120)<=ORB;
-    }
-
-    for (const r of rows) {
-      const p=r.split(",");
-      if (p.length<4) continue;
-
-      const date=p[0].split(" ")[0];
-      const s=parseFloat(p[1]);
-      const m=parseFloat(p[2]);
-      const v=parseFloat(p[3]);
-
-      if (gender==="male" && (hit(s,venus)||hit(v,s))) matches.add(date);
-      if (gender==="female" && (hit(m,venus)||hit(v,m))) matches.add(date);
-    }
-
-    localStorage.setItem(email,today);
-
-    if (!matches.size) {
-      result.innerText="No perfect matches found in the current date range.";
-      return;
-    }
-
-    result.innerHTML =
-      "<b>Perfect Matches:</b><br><br>" +
-      [...matches].slice(0,300).join("<br>") +
-      "<br><br>You will be notified if anyone with these birth dates is added.";
-
-  } catch(e) {
-    console.error(e);
-    result.innerText="Unexpected error. Refresh and try again.";
+  if (!email) {
+    result.innerHTML = "Email required.";
+    return;
   }
+
+  if (alreadySubmittedToday(email)) {
+    result.innerHTML = "Only one submission per day allowed. Please be careful before submitting.";
+    return;
+  }
+
+  result.innerHTML = "<div class='forecast-heading'>SEARCHING...</div>";
+
+  let data = await loadCSV();
+  let matches = [];
+  let seen = new Set();
+
+  for (let row of data) {
+    let a1, a2;
+
+    if (gender === "male") {
+      a1 = row.sun;
+      a2 = row.venus;
+    } else {
+      a1 = row.moon;
+      a2 = row.venus;
+    }
+
+    if (isAspectMatch(a1, a2)) {
+      if (!seen.has(row.date)) {
+        seen.add(row.date);
+        matches.push(row.date);
+      }
+    }
+  }
+
+  if (matches.length === 0) {
+    result.innerHTML = "<div class='forecast-text'>No perfect matches found in the current date range.</div>";
+    return;
+  }
+
+  result.innerHTML =
+    "<div class='forecast-heading'>POSSIBLE MATCH DATES</div>" +
+    "<div class='forecast-text'>" +
+    matches.join("<br>") +
+    "<br><br>You will be notified if anyone with these birth dates joins this site.<br><br>" +
+    "Please double-check all birth details before submission. Birth time must be converted to UTC/GMT." +
+    "</div>";
 }
 </script>
 
