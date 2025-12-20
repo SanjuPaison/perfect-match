@@ -2,233 +2,172 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Perfect Match</title>
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
-
 <style>
-html, body {
-  height: 100%;
-  margin: 0;
-  background-color: #AB4A4F;
-  font-family: 'Open Sans', sans-serif;
-  line-height: 150%;
-  letter-spacing: 1.5px;
-}
 body {
-  display: flex;
-  justify-content: flex-start;
-  align-items: center;
-  flex-direction: column;
-  padding: 20px;
-  box-sizing: border-box;
-  overflow-y: auto;
+  background:#000;
+  color:#fff;
+  font-family: Arial, sans-serif;
+  display:flex;
+  justify-content:center;
 }
-.header {
-  width: 100%;
-  max-width: 420px;
-  display: flex;
-  align-items: center;
-  margin-bottom: 24px;
-}
-.header img { height: 40px; }
-.header a {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: #ffffff;
-  font-weight: 600;
-  text-decoration: none;
-  font-size: 17px;
-}
-.tool {
-  width: 100%;
-  max-width: 420px;
-  padding: 24px;
-  border: 2px solid #ffffff;
-  border-radius: 14px;
-  background-color: #AB4A4F;
-  color: #ffffff;
+.container {
+  width:100%;
+  max-width:420px;
+  padding:20px;
 }
 h1 {
-  font-size: 20px;
-  margin-bottom: 20px;
-  text-align: center;
+  text-align:center;
+  margin-bottom:10px;
 }
-label {
-  display: block;
-  margin-bottom: 6px;
-  font-weight: 600;
+.warning {
+  font-size:12px;
+  color:#ffcc00;
+  text-align:center;
+  margin-bottom:15px;
 }
 input, select, button {
-  width: 100%;
-  padding: 12px;
-  margin-bottom: 16px;
-  font-size: 15px;
-  box-sizing: border-box;
+  width:100%;
+  padding:10px;
+  margin:6px 0;
+  border-radius:4px;
+  border:none;
+  font-size:14px;
 }
 button {
-  background-color: #ffffff;
-  color: #AB4A4F;
-  border: none;
-  font-weight: 600;
-  cursor: pointer;
+  background:#fff;
+  color:#000;
+  font-weight:bold;
+  cursor:pointer;
 }
-#result { margin-top: 16px; font-size: 13px; }
-.progress {
-  font-size: 12px;
-  text-align: center;
-  margin-top: 8px;
-  opacity: 0.9;
+#status {
+  text-align:center;
+  margin-top:10px;
 }
-.site-link {
-  margin-top: 24px;
-  text-align: center;
-  font-weight: 600;
-}
-.site-link a {
-  color: #ffffff;
-  text-decoration: none;
+#results {
+  margin-top:15px;
+  font-size:14px;
+  line-height:1.6;
 }
 </style>
 </head>
 
 <body>
+<div class="container">
+<h1>Perfect Match</h1>
 
-<div class="header site-link">
-  <a href="https://lifeprediction.net">
-    <img src="https://assets.nicepagecdn.com/0b5dbf35/6598838/images/Untitled111.png">
-    LIFE PREDICTION
-  </a>
+<div class="warning">
+⚠ Use UTC/GMT time.<br>
+⚠ Only one submission per email per day.<br>
+⚠ Double-check details before submitting.
 </div>
 
-<div class="tool">
-  <h1>PERFECT MATCH</h1>
+<select id="gender">
+  <option value="">Gender</option>
+  <option value="male">Male</option>
+  <option value="female">Female</option>
+</select>
 
-  <label>GENDER</label>
-  <select id="gender">
-    <option value="male">Male</option>
-    <option value="female">Female</option>
-  </select>
+<input type="date" id="dob">
+<input type="time" id="tob">
+<input type="email" id="email" placeholder="Email">
 
-  <label>DATE OF BIRTH</label>
-  <input type="date" id="dob">
+<button onclick="search()">Find Matches</button>
 
-  <label>TIME OF BIRTH</label>
-  <input type="time" id="tob">
-
-  <button onclick="findMatches()">SEARCH</button>
-
-  <div id="result"></div>
-  <div id="progress" class="progress"></div>
-
-  <div class="site-link">
-    <a href="https://lifeprediction.net">LIFEPREDICTION.NET</a>
-  </div>
+<div id="status"></div>
+<div id="results"></div>
 </div>
 
 <script>
+const CSV_FILE = "ephemeris_3hour_1940_2030.csv";
 const ORB = 8;
 
-/* ---------- helpers ---------- */
-function inRange(val, min, max) {
-  if (min <= max) return val >= min && val <= max;
-  return val >= min || val <= max;
-}
+let ephemeris = [];
 
-function buildRanges(base) {
-  const ranges = [];
-  [[0],[120]].forEach(([asp]) => {
-    let c = (base + asp + 360) % 360;
-    let a = (c - ORB + 360) % 360;
-    let b = (c + ORB) % 360;
-    ranges.push([a, b]);
+fetch(CSV_FILE)
+.then(r => r.text())
+.then(t => {
+  const lines = t.trim().split("\n");
+  ephemeris = lines.slice(1).map(l => {
+    const [dt,sun,moon,venus] = l.split(",");
+    return {
+      dt,
+      sun: parseFloat(sun),
+      moon: parseFloat(moon),
+      venus: parseFloat(venus)
+    };
   });
-  return ranges;
+});
+
+function normalize(a){
+  a%=360;
+  return a<0?a+360:a;
+}
+function inRange(a,b){
+  let d = Math.abs(a-b);
+  return d<=ORB || Math.abs(d-360)<=ORB;
 }
 
-function matchesAny(val, ranges) {
-  return ranges.some(r => inRange(val, r[0], r[1]));
-}
-
-/* ---------- main ---------- */
-async function findMatches() {
-  document.getElementById("result").innerHTML = "";
-  document.getElementById("progress").innerText = "Preparing scan…";
-
+function search(){
   const gender = document.getElementById("gender").value;
   const dob = document.getElementById("dob").value;
   const tob = document.getElementById("tob").value;
+  const email = document.getElementById("email").value.trim().toLowerCase();
 
-  /* user chart lookup row (nearest 3-hour slot) */
-  const birthKey = dob + " " + tob.slice(0,2);
-
-  const res = await fetch("ephemeris_3hour_1940_2030.csv");
-  const rows = (await res.text()).trim().split("\n");
-  const header = rows.shift();
-
-  let uSun, uMoon, uVenus;
-
-  for (const r of rows) {
-    const [dt,s,m,v] = r.split(",");
-    if (dt.startsWith(birthKey)) {
-      uSun = +s; uMoon = +m; uVenus = +v;
-      break;
-    }
-  }
-
-  if (uSun == null) {
-    document.getElementById("result").innerHTML =
-      "Birth time not found in ephemeris range.";
-    document.getElementById("progress").innerText = "";
+  if(!gender||!dob||!tob||!email){
+    alert("Fill all fields");
     return;
   }
 
-  /* ---------- STEP 0: gender logic FIRST ---------- */
-  const venusSource = gender === "male" ? uSun : uVenus;
-  const moonSource  = gender === "male" ? uVenus : uMoon;
+  const today = new Date().toISOString().slice(0,10);
+  const key = email+"_"+today;
+  if(localStorage.getItem(key)){
+    alert("Only one submission per email per day.");
+    return;
+  }
+  localStorage.setItem(key,"1");
 
-  /* ---------- STEP 1: calculate ranges ONCE ---------- */
-  const venusRanges = buildRanges(venusSource);
-  const moonRanges  = buildRanges(moonSource);
+  document.getElementById("status").innerText="Searching…";
+  document.getElementById("results").innerHTML="";
 
-  /* ---------- STEP 2 & 3: 2-stage filter ---------- */
-  const results = new Set();
-  const total = rows.length;
+  /* snap to 3-hour UTC */
+  const h = parseInt(tob.slice(0,2),10);
+  const snap = Math.round(h/3)*3 % 24;
+  const birthKey = dob+" "+String(snap).padStart(2,"0");
 
-  rows.forEach((row,i)=>{
-    if (i % 3000 === 0) {
-      document.getElementById("progress").innerText =
-        "Scanning " + Math.round(i/total*100) + "%";
-    }
+  const birthRow = ephemeris.find(r=>r.dt.startsWith(birthKey));
+  if(!birthRow){
+    document.getElementById("status").innerText="Birth time not found in ephemeris range.";
+    return;
+  }
 
-    const [date,sun,moon,venus] = row.split(",");
-    const eSun = +sun, eMoon = +moon, eVenus = +venus;
+  const uSun=birthRow.sun;
+  const uMoon=birthRow.moon;
+  const uVenus=birthRow.venus;
 
-    /* stage 1: Venus */
-    if (!matchesAny(eVenus, venusRanges)) return;
+  /* PRE-CALCULATE RANGES ONCE */
+  let stage1, stage2;
 
-    /* stage 2: Sun/Moon */
-    const secondOK =
-      gender === "male"
-        ? matchesAny(eMoon, moonRanges)
-        : matchesAny(eSun, moonRanges);
+  if(gender==="male"){
+    stage1 = ephemeris.filter(r => inRange(r.venus, uSun));
+    stage2 = stage1.filter(r => inRange(r.moon, uVenus));
+  } else {
+    stage1 = ephemeris.filter(r => inRange(r.sun, uVenus));
+    stage2 = stage1.filter(r => inRange(r.venus, uMoon));
+  }
 
-    if (secondOK) results.add(date);
-  });
+  const dates = [...new Set(stage2.map(r=>r.dt.split(" ")[0]))];
 
-  document.getElementById("progress").innerText = "";
+  if(!dates.length){
+    document.getElementById("status").innerText="No perfect matches found.";
+    return;
+  }
 
-  document.getElementById("result").innerHTML =
-    results.size === 0
-      ? "No perfect matches found in the current date range."
-      : "<b>Perfect Match Birth Dates:</b><br><br>" +
-        [...results].join("<br>");
+  document.getElementById("status").innerText="Perfect matches found:";
+  document.getElementById("results").innerHTML =
+    dates.slice(0,200).join("<br>");
 }
 </script>
-
 </body>
 </html>
