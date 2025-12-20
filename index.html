@@ -77,10 +77,7 @@ button {
   font-weight: 600;
   cursor: pointer;
 }
-#result {
-  margin-top: 16px;
-  font-size: 13px;
-}
+#result { margin-top: 16px; font-size: 13px; }
 .progress {
   font-size: 12px;
   text-align: center;
@@ -136,119 +133,100 @@ button {
 <script>
 const ORB = 8;
 
-function normalize(d) {
-  return (d + 360) % 360;
+/* ---------- helpers ---------- */
+function inRange(val, min, max) {
+  if (min <= max) return val >= min && val <= max;
+  return val >= min || val <= max;
 }
 
-function buildRanges(deg) {
+function buildRanges(base) {
   const ranges = [];
-  [0, 120].forEach(a => {
-    let start = normalize(deg + a - ORB);
-    let end   = normalize(deg + a + ORB);
-    if (start <= end) {
-      ranges.push([start, end]);
-    } else {
-      ranges.push([start, 360]);
-      ranges.push([0, end]);
-    }
+  [[0],[120]].forEach(([asp]) => {
+    let c = (base + asp + 360) % 360;
+    let a = (c - ORB + 360) % 360;
+    let b = (c + ORB) % 360;
+    ranges.push([a, b]);
   });
   return ranges;
 }
 
-function inRanges(deg, ranges) {
-  return ranges.some(r => deg >= r[0] && deg <= r[1]);
+function matchesAny(val, ranges) {
+  return ranges.some(r => inRange(val, r[0], r[1]));
 }
 
+/* ---------- main ---------- */
 async function findMatches() {
   document.getElementById("result").innerHTML = "";
-  document.getElementById("progress").innerText = "Loading ephemeris…";
+  document.getElementById("progress").innerText = "Preparing scan…";
 
   const gender = document.getElementById("gender").value;
+  const dob = document.getElementById("dob").value;
+  const tob = document.getElementById("tob").value;
+
+  /* user chart lookup row (nearest 3-hour slot) */
+  const birthKey = dob + " " + tob.slice(0,2);
 
   const res = await fetch("ephemeris_3hour_1940_2030.csv");
-  const text = await res.text();
-  const rows = text.trim().split("\n").slice(1);
-  const total = rows.length;
+  const rows = (await res.text()).trim().split("\n");
+  const header = rows.shift();
 
-  /* -------------------------------------------------
-     STEP 0: Gender logic FIRST (fixed rules)
-     ------------------------------------------------- */
+  let uSun, uMoon, uVenus;
 
-  // We do NOT recompute per row
-  // These are the two permanent rules:
-  // Male Sun ↔ Female Venus
-  // Female Moon ↔ Male Venus
-
-  // User chart placeholders (must already be known / derived)
-  // Replace these with actual user Sun/Moon/Venus degrees
-  const uSun   = window.USER_SUN;
-  const uMoon  = window.USER_MOON;
-  const uVenus = window.USER_VENUS;
-
-  let venusTargetDeg, luminaryTargetDeg;
-
-  if (gender === "male") {
-    venusTargetDeg = uSun;     // Male Sun ↔ Female Venus
-    luminaryTargetDeg = uVenus; // Female Moon ↔ Male Venus
-  } else {
-    venusTargetDeg = uVenus;   // Male Sun ↔ Female Venus
-    luminaryTargetDeg = uMoon; // Female Moon ↔ Male Venus
+  for (const r of rows) {
+    const [dt,s,m,v] = r.split(",");
+    if (dt.startsWith(birthKey)) {
+      uSun = +s; uMoon = +m; uVenus = +v;
+      break;
+    }
   }
 
-  /* -------------------------------------------------
-     STEP 1: Build ranges ONCE
-     ------------------------------------------------- */
+  if (uSun == null) {
+    document.getElementById("result").innerHTML =
+      "Birth time not found in ephemeris range.";
+    document.getElementById("progress").innerText = "";
+    return;
+  }
 
-  const venusRanges = buildRanges(venusTargetDeg);
-  const luminaryRanges = buildRanges(luminaryTargetDeg);
+  /* ---------- STEP 0: gender logic FIRST ---------- */
+  const venusSource = gender === "male" ? uSun : uVenus;
+  const moonSource  = gender === "male" ? uVenus : uMoon;
 
-  /* -------------------------------------------------
-     STEP 2: Venus pre-filter
-     ------------------------------------------------- */
+  /* ---------- STEP 1: calculate ranges ONCE ---------- */
+  const venusRanges = buildRanges(venusSource);
+  const moonRanges  = buildRanges(moonSource);
 
-  const venusFiltered = [];
-  rows.forEach((row, i) => {
+  /* ---------- STEP 2 & 3: 2-stage filter ---------- */
+  const results = new Set();
+  const total = rows.length;
+
+  rows.forEach((row,i)=>{
     if (i % 3000 === 0) {
       document.getElementById("progress").innerText =
-        "Scanning " + Math.round((i / total) * 100) + "%";
+        "Scanning " + Math.round(i/total*100) + "%";
     }
 
-    const [, , , eVenus] = row.split(",");
-    const v = parseFloat(eVenus);
-    if (inRanges(v, venusRanges)) {
-      venusFiltered.push(row);
-    }
-  });
+    const [date,sun,moon,venus] = row.split(",");
+    const eSun = +sun, eMoon = +moon, eVenus = +venus;
 
-  /* -------------------------------------------------
-     STEP 3: Sun / Moon filter
-     ------------------------------------------------- */
+    /* stage 1: Venus */
+    if (!matchesAny(eVenus, venusRanges)) return;
 
-  const results = new Set();
+    /* stage 2: Sun/Moon */
+    const secondOK =
+      gender === "male"
+        ? matchesAny(eMoon, moonRanges)
+        : matchesAny(eSun, moonRanges);
 
-  venusFiltered.forEach(row => {
-    const [date, eSun, eMoon, eVenus] = row.split(",");
-    const s = parseFloat(eSun);
-    const m = parseFloat(eMoon);
-
-    const luminaryDeg = (gender === "male") ? m : s;
-
-    if (inRanges(luminaryDeg, luminaryRanges)) {
-      results.add(date);
-    }
+    if (secondOK) results.add(date);
   });
 
   document.getElementById("progress").innerText = "";
 
-  if (results.size === 0) {
-    document.getElementById("result").innerHTML =
-      "No perfect matches found in the current date range.";
-    return;
-  }
-
   document.getElementById("result").innerHTML =
-    "<b>Perfect Match Birth Dates:</b><br><br>" +
-    [...results].join("<br>");
+    results.size === 0
+      ? "No perfect matches found in the current date range."
+      : "<b>Perfect Match Birth Dates:</b><br><br>" +
+        [...results].join("<br>");
 }
 </script>
 
