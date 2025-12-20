@@ -171,92 +171,102 @@ function isAspectMatch(a, b) {
 }
 
 function alreadySubmittedToday(email) {
-  let key = "pm_" + email;
-  let last = localStorage.getItem(key);
-  let today = new Date().toISOString().slice(0,10);
-  if (last === today) return true;
+  const key = "pm_" + email;
+  const today = new Date().toISOString().slice(0,10);
+  if (localStorage.getItem(key) === today) return true;
   localStorage.setItem(key, today);
   return false;
 }
 
-async function loadCSV() {
-  try {
-    const res = await fetch("ephemeris_3hour_1940_2030.csv?v=" + Date.now());
-    if (!res.ok) throw new Error("CSV not found");
-    const text = await res.text();
-    const lines = text.split("\n").slice(1);
-    return lines
-      .map(l => l.trim())
-      .filter(l => l.length > 0)
-      .map(l => {
-        const c = l.split(",");
-        return {
-          date: c[0],
-          time: c[1],
-          sun: Number(c[2]),
-          moon: Number(c[3]),
-          venus: Number(c[4])
-        };
+function loadCSV(callback) {
+  const xhr = new XMLHttpRequest();
+  xhr.open("GET", CSV_FILE + "?v=" + Date.now(), true);
+  xhr.timeout = 15000;
+
+  xhr.onload = function () {
+    if (xhr.status !== 200) {
+      callback(null);
+      return;
+    }
+
+    const lines = xhr.responseText.split("\n").slice(1);
+    const data = [];
+
+    for (let l of lines) {
+      l = l.trim();
+      if (!l) continue;
+      const c = l.split(",");
+      data.push({
+        date: c[0],
+        sun: Number(c[2]),
+        moon: Number(c[3]),
+        venus: Number(c[4])
       });
-  } catch (e) {
-    document.getElementById("result").innerHTML =
-      "<div class='forecast-text'>Data file could not be loaded.</div>";
-    return [];
-  }
+    }
+    callback(data);
+  };
+
+  xhr.onerror = xhr.ontimeout = function () {
+    callback(null);
+  };
+
+  xhr.send();
 }
 
-async function findMatches() {
-  let gender = document.getElementById("gender").value;
-  let email = document.getElementById("email").value.trim();
-  let result = document.getElementById("result");
+function findMatches() {
+  const gender = document.getElementById("gender").value;
+  const email = document.getElementById("email").value.trim();
+  const result = document.getElementById("result");
 
   if (!email) {
-    result.innerHTML = "Email required.";
+    result.innerHTML = "<div class='forecast-text'>Email required.</div>";
     return;
   }
 
   if (alreadySubmittedToday(email)) {
-    result.innerHTML = "Only one submission per day allowed. Please be careful before submitting.";
+    result.innerHTML =
+      "<div class='forecast-text'>Only one submission per day is allowed. Please double-check all details before submitting.</div>";
     return;
   }
 
   result.innerHTML = "<div class='forecast-heading'>SEARCHING...</div>";
 
-  let data = await loadCSV();
-  let matches = [];
-  let seen = new Set();
-
-  for (let row of data) {
-    let a1, a2;
-
-    if (gender === "male") {
-      a1 = row.sun;
-      a2 = row.venus;
-    } else {
-      a1 = row.moon;
-      a2 = row.venus;
+  loadCSV(function (rows) {
+    if (!rows) {
+      result.innerHTML =
+        "<div class='forecast-text'>Data file could not be loaded.</div>";
+      return;
     }
 
-    if (isAspectMatch(a1, a2)) {
-      if (!seen.has(row.date)) {
-        seen.add(row.date);
-        matches.push(row.date);
+    const matches = [];
+    const seen = new Set();
+
+    for (let r of rows) {
+      const a1 = gender === "male" ? r.sun : r.moon;
+      const a2 = r.venus;
+
+      if (isAspectMatch(a1, a2)) {
+        if (!seen.has(r.date)) {
+          seen.add(r.date);
+          matches.push(r.date);
+        }
       }
     }
-  }
 
-  if (matches.length === 0) {
-    result.innerHTML = "<div class='forecast-text'>No perfect matches found in the current date range.</div>";
-    return;
-  }
+    if (matches.length === 0) {
+      result.innerHTML =
+        "<div class='forecast-text'>No perfect matches found in the current date range.</div>";
+      return;
+    }
 
-  result.innerHTML =
-    "<div class='forecast-heading'>POSSIBLE MATCH DATES</div>" +
-    "<div class='forecast-text'>" +
-    matches.join("<br>") +
-    "<br><br>You will be notified if anyone with these birth dates joins this site.<br><br>" +
-    "Please double-check all birth details before submission. Birth time must be converted to UTC/GMT." +
-    "</div>";
+    result.innerHTML =
+      "<div class='forecast-heading'>POSSIBLE MATCH DATES</div>" +
+      "<div class='forecast-text'>" +
+      matches.join("<br>") +
+      "<br><br>You will be notified if anyone with these birth dates is added to this site.<br><br>" +
+      "Please ensure birth time is converted to UTC/GMT. Only one submission per person per day is allowed." +
+      "</div>";
+  });
 }
 </script>
 
