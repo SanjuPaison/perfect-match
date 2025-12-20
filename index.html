@@ -18,97 +18,53 @@ html, body {
   line-height: 150%;
   letter-spacing: 1.5px;
 }
-
 body {
   display: flex;
   flex-direction: column;
   align-items: center;
   padding: 20px;
   box-sizing: border-box;
-  overflow-y: auto;
 }
-
 .header {
   width: 100%;
   max-width: 420px;
   margin-bottom: 24px;
 }
-
 .header a {
   display: flex;
   align-items: center;
   gap: 10px;
-  color: #ffffff;
+  color: #fff;
   font-weight: 600;
   text-decoration: none;
-  font-size: 17px;
 }
-
-.header img {
-  height: 40px;
-}
-
+.header img { height: 40px; }
 .tool {
   width: 100%;
   max-width: 420px;
   padding: 28px;
-  border: 2px solid #ffffff;
+  border: 2px solid #fff;
   border-radius: 14px;
-  background-color: #AB4A4F;
-  color: #ffffff;
+  color: #fff;
   box-sizing: border-box;
 }
-
-h1 {
-  font-size: 20px;
-  margin-bottom: 16px;
-  text-align: center;
-}
-
-label {
-  display: block;
-  margin-bottom: 6px;
-  font-weight: 600;
-}
-
+h1 { text-align: center; font-size: 20px; }
+label { font-weight: 600; margin-bottom: 6px; display: block; }
 input, select, button {
   width: 100%;
   padding: 12px;
   margin-bottom: 16px;
-  font-size: 15px;
   box-sizing: border-box;
 }
-
 button {
-  background-color: #ffffff;
+  background: #fff;
   color: #AB4A4F;
   border: none;
   font-weight: 600;
   cursor: pointer;
 }
-
-.warning {
-  font-size: 12px;
-  text-align: center;
-  margin-bottom: 14px;
-}
-
-#result {
-  margin-top: 18px;
-  font-size: 13px;
-  text-align: center;
-}
-
-.site-link {
-  margin-top: 24px;
-  text-align: center;
-  font-weight: 600;
-}
-
-.site-link a {
-  color: #ffffff;
-  text-decoration: none;
-}
+.warning { text-align: center; font-size: 12px; margin-bottom: 14px; }
+#result { text-align: center; font-size: 13px; margin-top: 16px; }
 </style>
 </head>
 
@@ -147,10 +103,6 @@ button {
 <button onclick="findMatches()">CHECK MATCHES</button>
 
 <div id="result"></div>
-
-<div class="site-link">
-  <a href="https://lifeprediction.net">LIFEPREDICTION.NET</a>
-</div>
 </div>
 
 <script>
@@ -160,80 +112,83 @@ const ORB = 8;
 let eph = [];
 let loaded = false;
 
-/* ---------- LOAD EPHEMERIS (SAFE DATE PARSE) ---------- */
+/* ---------- LOAD CSV WITH HEADER MAPPING ---------- */
 fetch(CSV)
   .then(r => r.text())
   .then(t => {
-    eph = t.trim().split("\n").slice(1).map(r => {
-      const [dt, sun, moon, venus] = r.split(",");
+    const lines = t.trim().split("\n");
+    const header = lines[0].toLowerCase().split(",");
+
+    const idx = {
+      dt: header.findIndex(h => h.includes("date") || h.includes("time")),
+      sun: header.findIndex(h => h.includes("sun")),
+      moon: header.findIndex(h => h.includes("moon")),
+      venus: header.findIndex(h => h.includes("venus"))
+    };
+
+    if (Object.values(idx).some(i => i === -1)) {
+      alert("CSV header not recognized. Required: date/time, sun, moon, venus.");
+      return;
+    }
+
+    eph = lines.slice(1).map(r => {
+      const c = r.split(",");
       return {
-        t: Date.parse(dt.replace(" ", "T") + "Z"),
-        sun: +sun,
-        moon: +moon,
-        venus: +venus,
-        d: dt
+        t: Date.parse(c[idx.dt].replace(" ", "T") + "Z"),
+        sun: +c[idx.sun],
+        moon: +c[idx.moon],
+        venus: +c[idx.venus],
+        d: c[idx.dt]
       };
-    });
+    }).filter(r =>
+      !isNaN(r.t) && !isNaN(r.sun) && !isNaN(r.moon) && !isNaN(r.venus)
+    );
+
     loaded = true;
   });
 
-/* ---------- HELPERS ---------- */
-function inRange(val, center){
-  const d = Math.abs(val - center);
+function inRange(v, c){
+  const d = Math.abs(v - c);
   return d <= ORB || Math.abs(d - 360) <= ORB;
 }
 
 function nearestRow(ms){
-  return eph.reduce((a,b) =>
-    Math.abs(b.t - ms) < Math.abs(a.t - ms) ? b : a
+  return eph.reduce((a,b)=>
+    Math.abs(b.t-ms) < Math.abs(a.t-ms) ? b : a
   );
 }
 
-/* ---------- CORE MATCH ENGINE ---------- */
 function findMatches(){
 
   const result = document.getElementById("result");
 
   if(!loaded){
-    result.innerHTML = "Loading ephemeris… please wait.";
+    result.innerHTML = "Loading ephemeris…";
     return;
   }
 
-  const emailKey =
-    email.value.toLowerCase() + "_" +
-    new Date().toISOString().slice(0,10);
+  const key = email.value.toLowerCase()+"_"+new Date().toISOString().slice(0,10);
+  if(localStorage[key]){ alert("One submission per day."); return; }
+  localStorage[key]=1;
 
-  if(localStorage[emailKey]){
-    alert("Only one submission per day.");
-    return;
-  }
-  localStorage[emailKey] = 1;
-
-  const birthMs = new Date(
-    dob.value + "T" + tob.value + "Z"
-  ).getTime();
-
+  const birthMs = new Date(dob.value+"T"+tob.value+"Z").getTime();
   const base = nearestRow(birthMs);
 
   let stage1, stage2;
 
   if(gender.value === "male"){
-    /* MALE INPUT
-       Female Venus centered on Male Sun
-       Female Moon centered on Male Venus */
+    // Female Venus centered on Male Sun
     stage1 = eph.filter(r => inRange(r.venus, base.sun));
+    // Female Moon centered on Male Venus
     stage2 = stage1.filter(r => inRange(r.moon, base.venus));
   } else {
-    /* FEMALE INPUT
-       Male Venus centered on Female Moon
-       Male Sun centered on Female Venus */
+    // Male Venus centered on Female Moon
     stage1 = eph.filter(r => inRange(r.venus, base.moon));
+    // Male Sun centered on Female Venus
     stage2 = stage1.filter(r => inRange(r.sun, base.venus));
   }
 
-  const dates = [...new Set(
-    stage2.map(r => r.d.split(" ")[0])
-  )];
+  const dates = [...new Set(stage2.map(r => r.d.split(" ")[0]))];
 
   result.innerHTML = dates.length
     ? dates.join("<br>")
