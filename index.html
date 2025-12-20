@@ -76,10 +76,9 @@ label {
 
 input, select, button {
   width: 100%;
-  padding: 10px;
+  padding: 12px;
   margin-bottom: 16px;
   font-size: 15px;
-  font-family: 'Open Sans', sans-serif;
   box-sizing: border-box;
 }
 
@@ -87,30 +86,26 @@ button {
   background-color: #ffffff;
   color: #AB4A4F;
   border: none;
-  cursor: pointer;
   font-weight: 600;
+  cursor: pointer;
 }
 
 #result {
   margin-top: 16px;
-  text-align: justify;
-}
-
-.forecast-heading {
-  font-size: 14px;
-  font-weight: 600;
-  text-align: center;
-  margin-bottom: 8px;
-}
-
-.forecast-text {
   font-size: 13px;
+}
+
+.progress {
+  font-size: 12px;
+  text-align: center;
+  margin-top: 8px;
+  opacity: 0.9;
 }
 
 .site-link {
   margin-top: 24px;
-  font-weight: 600;
   text-align: center;
+  font-weight: 600;
 }
 
 .site-link a {
@@ -130,156 +125,93 @@ button {
 </div>
 
 <div class="tool">
-<h1>PERFECT MATCH</h1>
+  <h1>PERFECT MATCH</h1>
 
-<label>GENDER</label>
-<select id="gender">
-  <option value="male">Male</option>
-  <option value="female">Female</option>
-</select>
+  <label>GENDER</label>
+  <select id="gender">
+    <option value="male">Male</option>
+    <option value="female">Female</option>
+  </select>
 
-<label>DATE OF BIRTH</label>
-<input type="date" id="dob">
+  <label>DATE OF BIRTH</label>
+  <input type="date" id="dob">
 
-<label>TIME OF BIRTH</label>
-<input type="time" id="tob">
+  <label>TIME OF BIRTH</label>
+  <input type="time" id="tob">
 
-<label>EMAIL</label>
-<input type="email" id="email">
+  <button onclick="findMatches()">SEARCH</button>
 
-<button onclick="findMatches()">SEARCH</button>
+  <div id="result"></div>
+  <div id="progress" class="progress"></div>
 
-<div id="result"></div>
-
-<div class="site-link">
-  <a href="https://lifeprediction.net">LIFEPREDICTION.NET</a>
-</div>
+  <div class="site-link">
+    <a href="https://lifeprediction.net">LIFEPREDICTION.NET</a>
+  </div>
 </div>
 
 <script>
 const ORB = 8;
-const CSV_FILE = "ephemeris_3hour_1940_2030.csv";
 
-function normalizeDiff(a, b) {
-  let d = Math.abs(a - b);
-  return Math.min(d, 360 - d);
+function angleDiff(a, b) {
+  let d = Math.abs(a - b) % 360;
+  return d > 180 ? 360 - d : d;
 }
 
-function isAspectMatch(a, b) {
-  let d = normalizeDiff(a, b);
-  return d <= ORB || Math.abs(d - 120) <= ORB;
+function aspectMatch(a, b) {
+  const d = angleDiff(a, b);
+  return Math.abs(d) <= ORB || Math.abs(d - 120) <= ORB;
 }
 
-function alreadySubmittedToday(email) {
-  const key = "pm_" + email;
-  const today = new Date().toISOString().slice(0,10);
-  if (localStorage.getItem(key) === today) return true;
-  localStorage.setItem(key, today);
-  return false;
-}
+async function findMatches() {
+  document.getElementById("result").innerHTML = "";
+  document.getElementById("progress").innerText = "Loading ephemeris…";
 
-function loadCSV(callback) {
-  const xhr = new XMLHttpRequest();
-  xhr.open("GET", CSV_FILE + "?v=" + Date.now(), true);
-  xhr.timeout = 15000;
-
-  xhr.onload = function () {
-    if (xhr.status !== 200) {
-      callback(null);
-      return;
-    }
-
-    const lines = xhr.responseText.split("\n").slice(1);
-    const data = [];
-
-    for (let l of lines) {
-      l = l.trim();
-      if (!l) continue;
-      const c = l.split(",");
-      data.push({
-        date: c[0],
-        sun: Number(c[2]),
-        moon: Number(c[3]),
-        venus: Number(c[4])
-      });
-    }
-    callback(data);
-  };
-
-  xhr.onerror = xhr.ontimeout = function () {
-    callback(null);
-  };
-
-  xhr.send();
-}
-
-function findMatches() {
   const gender = document.getElementById("gender").value;
-  const email = document.getElementById("email").value.trim();
-  const result = document.getElementById("result");
+  const dob = document.getElementById("dob").value;
+  const tob = document.getElementById("tob").value;
 
-  if (!email) {
-    result.innerHTML = "<div class='forecast-text'>Email required.</div>";
-    return;
-  }
+  const birthDate = new Date(dob + "T" + tob + ":00Z");
 
-  if (alreadySubmittedToday(email)) {
-    result.innerHTML =
-      "<div class='forecast-text'>Only one submission per person per day is allowed. Please double-check all details before submitting.</div>";
-    return;
-  }
+  const res = await fetch("ephemeris_3hour_1940_2030.csv");
+  const text = await res.text();
+  const rows = text.trim().split("\n").slice(1);
 
-  result.innerHTML = "<div class='forecast-heading'>SEARCHING...</div>";
+  const total = rows.length;
+  let matches = [];
 
-  loadCSV(function (rows) {
-    if (!rows) {
-      result.innerHTML =
-        "<div class='forecast-text'>Data file could not be loaded.</div>";
-      return;
+  rows.forEach((row, i) => {
+    if (i % 3000 === 0) {
+      document.getElementById("progress").innerText =
+        "Scanning " + Math.round((i / total) * 100) + "%";
     }
 
-    const matches = [];
-    const seen = new Set();
+    const [date, sun, moon, venus] = row.split(",");
+    const s = parseFloat(sun);
+    const m = parseFloat(moon);
+    const v = parseFloat(venus);
 
-    for (let r of rows) {
-
-      let condition1 = false;
-      let condition2 = false;
-
-      if (gender === "male") {
-        // 1. Other Venus ↔ Other Sun (represents male Sun match)
-        condition1 = isAspectMatch(r.venus, r.sun);
-        // 2. Other Moon ↔ Other Venus (represents female Moon ↔ male Venus)
-        condition2 = isAspectMatch(r.moon, r.venus);
-      } else {
-        // 1. Other Venus ↔ Other Moon (represents female Moon match)
-        condition1 = isAspectMatch(r.venus, r.moon);
-        // 2. Other Sun ↔ Other Venus (represents male Sun ↔ female Venus)
-        condition2 = isAspectMatch(r.sun, r.venus);
+    if (gender === "male") {
+      if (aspectMatch(s, v) && aspectMatch(m, v)) {
+        matches.push(date);
       }
-
-      if (condition1 && condition2) {
-        if (!seen.has(r.date)) {
-          seen.add(r.date);
-          matches.push(r.date);
-        }
+    } else {
+      if (aspectMatch(m, v) && aspectMatch(s, v)) {
+        matches.push(date);
       }
     }
-
-    if (matches.length === 0) {
-      result.innerHTML =
-        "<div class='forecast-text'>No perfect matches found in the current date range.</div>";
-      return;
-    }
-
-    result.innerHTML =
-      "<div class='forecast-heading'>POSSIBLE MATCH DATES</div>" +
-      "<div class='forecast-text'>" +
-      matches.join("<br>") +
-      "<br><br>You will be notified if anyone with these birth dates is added to this site.<br><br>" +
-      "Please ensure birth time is converted to UTC/GMT. Only one submission per person per day is allowed." +
-      "</div>";
   });
+
+  document.getElementById("progress").innerText = "";
+
+  if (matches.length === 0) {
+    document.getElementById("result").innerHTML =
+      "No perfect matches found in the current date range.";
+    return;
+  }
+
+  document.getElementById("result").innerHTML =
+    "<b>Perfect Match Birth Dates:</b><br><br>" +
+    [...new Set(matches)].join("<br>");
 }
 </script>
 
