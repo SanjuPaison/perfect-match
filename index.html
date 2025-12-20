@@ -180,19 +180,29 @@ function alreadySubmittedToday(email) {
 }
 
 async function loadCSV() {
-  let res = await fetch(CSV_FILE);
-  let text = await res.text();
-  let lines = text.trim().split("\n").slice(1);
-  return lines.map(l => {
-    let c = l.split(",");
-    return {
-      date: c[0],
-      time: c[1],
-      sun: parseFloat(c[2]),
-      moon: parseFloat(c[3]),
-      venus: parseFloat(c[4])
-    };
-  });
+  try {
+    const res = await fetch("ephemeris_3hour_1940_2030.csv?v=" + Date.now());
+    if (!res.ok) throw new Error("CSV not found");
+    const text = await res.text();
+    const lines = text.split("\n").slice(1);
+    return lines
+      .map(l => l.trim())
+      .filter(l => l.length > 0)
+      .map(l => {
+        const c = l.split(",");
+        return {
+          date: c[0],
+          time: c[1],
+          sun: Number(c[2]),
+          moon: Number(c[3]),
+          venus: Number(c[4])
+        };
+      });
+  } catch (e) {
+    document.getElementById("result").innerHTML =
+      "<div class='forecast-text'>Data file could not be loaded.</div>";
+    return [];
+  }
 }
 
 async function findMatches() {
