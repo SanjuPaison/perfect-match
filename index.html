@@ -67,9 +67,9 @@ label {
   font-weight: 600;
 }
 input, select, button {
-  width: calc(100% - 20px);
+  width: 100%;
   padding: 10px;
-  margin: 0 0 16px 0;
+  margin-bottom: 16px;
   font-size: 15px;
   box-sizing: border-box;
 }
@@ -146,10 +146,11 @@ button {
 <script>
 const CSV = "ephemeris_3hour_1940_2030.csv";
 const ORB = 8;
+
 let eph = [];
 let loaded = false;
 
-// Load ephemeris
+// Load ephemeris once
 fetch(CSV)
   .then(r => r.text())
   .then(t => {
@@ -167,16 +168,16 @@ fetch(CSV)
     loaded = true;
   });
 
-// Handle 360 degree wrapping
+// 360° range check
 function inRange360(pos, min, max){
   if(min <= max) return pos >= min && pos <= max;
   return pos >= min || pos <= max;
 }
 
-// Round to nearest 3 hours
+// Round birth time to nearest 3-hour ephemeris slot
 function roundTo3Hours(ms){
-  const three = 3 * 60 * 60 * 1000;
-  return Math.round(ms / three) * three;
+  const step = 3 * 60 * 60 * 1000;
+  return Math.round(ms / step) * step;
 }
 
 // Find nearest ephemeris row
@@ -199,45 +200,55 @@ function findMatches(){
     return;
   }
 
-  const g = gender.value;
   const emailVal = email.value.toLowerCase();
   const key = emailVal + "_" + new Date().toISOString().slice(0,10);
-
   if(localStorage[key]){
     alert("Only one submission per day. Please double-check before submitting.");
     return;
   }
   localStorage[key] = 1;
 
+  const g = gender.value;
   const birthMs = new Date(dob.value + "T" + tob.value + "Z").getTime();
   const base = nearestRow(roundTo3Hours(birthMs));
 
-  let venusBase, mainBase;
-  let venusPlanet, otherPlanet;
+  let firstPlanet, secondPlanet;
+  let firstMin, firstMax, secondMin, secondMax;
 
   if(g === "male"){
-    mainBase = base.sun;
-    venusBase = base.venus;
-    venusPlanet = 'venus';
-    otherPlanet = 'moon';
+    // Male → Female
+    // Female Venus around Male Sun
+    firstPlanet = "venus";
+    firstMin = (base.sun - ORB + 360) % 360;
+    firstMax = (base.sun + ORB) % 360;
+
+    // Female Moon around Male Venus
+    secondPlanet = "moon";
+    secondMin = (base.venus - ORB + 360) % 360;
+    secondMax = (base.venus + ORB) % 360;
+
   } else {
-    mainBase = base.moon;
-    venusBase = base.venus;
-    venusPlanet = 'venus';
-    otherPlanet = 'sun';
+    // Female → Male
+    // Male Venus around Female Moon
+    firstPlanet = "venus";
+    firstMin = (base.moon - ORB + 360) % 360;
+    firstMax = (base.moon + ORB) % 360;
+
+    // Male Sun around Female Venus
+    secondPlanet = "sun";
+    secondMin = (base.venus - ORB + 360) % 360;
+    secondMax = (base.venus + ORB) % 360;
   }
 
-  // Step 1: Calculate ranges
-  const venusMin = (mainBase - ORB + 360) % 360;
-  const venusMax = (mainBase + ORB) % 360;
-  const otherMin = (venusBase - ORB + 360) % 360;
-  const otherMax = (venusBase + ORB) % 360;
+  // Stage 1: filter by Venus range
+  let stage1 = eph.filter(r =>
+    inRange360(r[firstPlanet], firstMin, firstMax)
+  );
 
-  // Step 2: Filter ephemeris by venus range first
-  let stage1 = eph.filter(r => inRange360(r[venusPlanet], venusMin, venusMax));
-
-  // Step 3: Filter by other range
-  let stage2 = stage1.filter(r => inRange360(r[otherPlanet], otherMin, otherMax));
+  // Stage 2: filter by second planet range
+  let stage2 = stage1.filter(r =>
+    inRange360(r[secondPlanet], secondMin, secondMax)
+  );
 
   const dates = [...new Set(stage2.map(r => r.d.split(" ")[0]))];
 
