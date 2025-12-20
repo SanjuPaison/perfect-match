@@ -212,31 +212,35 @@ function findMatches(){
   const birthMs = new Date(dob.value + "T" + tob.value + "Z").getTime();
   const base = nearestRow(roundTo3Hours(birthMs));
 
-  let venusPos, otherPos;
+  let venusBase, mainBase;
+  let venusPlanet, otherPlanet;
+
   if(g === "male"){
-    venusPos = base.venus;
-    otherPos = base.sun;
+    mainBase = base.sun;
+    venusBase = base.venus;
+    venusPlanet = 'venus';
+    otherPlanet = 'moon';
   } else {
-    venusPos = base.venus;
-    otherPos = base.moon;
+    mainBase = base.moon;
+    venusBase = base.venus;
+    venusPlanet = 'venus';
+    otherPlanet = 'sun';
   }
 
-  // Calculate ranges
-  let venusMin = (otherPos - ORB + 360) % 360;
-  let venusMax = (otherPos + ORB) % 360;
-  let otherMin = (venusPos - ORB + 360) % 360;
-  let otherMax = (venusPos + ORB) % 360;
+  // Step 1: Calculate ranges
+  const venusMin = (mainBase - ORB + 360) % 360;
+  const venusMax = (mainBase + ORB) % 360;
+  const otherMin = (venusBase - ORB + 360) % 360;
+  const otherMax = (venusBase + ORB) % 360;
 
-  // Step 1: filter by venus range
-  let stage1 = eph.filter(r => inRange360(r.venus, venusMin, venusMax));
+  // Step 2: Filter ephemeris by venus range first
+  let stage1 = eph.filter(r => inRange360(r[venusPlanet], venusMin, venusMax));
 
-  // Step 2: filter by other range
-  let stage2 = stage1.filter(r => {
-    if(g === "male") return inRange360(r.moon, otherMin, otherMax);
-    return inRange360(r.sun, otherMin, otherMax);
-  });
+  // Step 3: Filter by other range
+  let stage2 = stage1.filter(r => inRange360(r[otherPlanet], otherMin, otherMax));
 
   const dates = [...new Set(stage2.map(r => r.d.split(" ")[0]))];
+
   result.innerHTML = dates.length
     ? dates.join("<br>")
     : "No perfect matches found in this date range.";
