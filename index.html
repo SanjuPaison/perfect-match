@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Perfect Match</title>
+
+<style>
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: #f4f5f7;
+  color: #222;
+}
+
+.container {
+  max-width: 420px;
+  margin: 40px auto;
+  background: #ffffff;
+  border-radius: 14px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+  padding: 24px 22px 28px;
+}
+
+h1 {
+  font-size: 22px;
+  font-weight: 600;
+  text-align: center;
+  margin: 0 0 14px;
+}
+
+.subtle {
+  font-size: 13.5px;
+  color: #666;
+  text-align: center;
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.warning {
+  font-size: 13px;
+  color: #8a1c1c;
+  text-align: center;
+  margin-bottom: 18px;
+}
+
+label {
+  display: block;
+  font-size: 14px;
+  margin: 14px 0 6px;
+  color: #444;
+}
+
+input, select {
+  width: 100%;
+  padding: 11px 10px;
+  font-size: 15px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  box-sizing: border-box;
+}
+
+button {
+  width: 100%;
+  margin-top: 22px;
+  padding: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  border: none;
+  border-radius: 10px;
+  background: #111;
+  color: #fff;
+  cursor: pointer;
+}
+
+button:disabled {
+  background: #777;
+}
+
+#results {
+  margin-top: 26px;
+  padding-top: 18px;
+  border-top: 1px solid #eee;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.result-title {
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.date {
+  padding: 4px 0;
+}
+
+.footer-note {
+  margin-top: 16px;
+  font-size: 13px;
+  color: #666;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <h1>Perfect Match</h1>
+
+  <div class="subtle">
+    This reading is calculated using planetary positions in UTC / GMT.
+    If your birth time was recorded in local time, please convert it before continuing.
+  </div>
+
+  <div class="warning">
+    Please double-check your birth date, time, and email.<br>
+    Only one submission per email address per day is allowed.
+  </div>
+
+  <label>Email</label>
+  <input type="email" id="email" required>
+
+  <label>Gender</label>
+  <select id="gender">
+    <option value="male">Male</option>
+    <option value="female">Female</option>
+  </select>
+
+  <label>Birth Date (UTC)</label>
+  <input type="date" id="date" required>
+
+  <label>Birth Time (UTC)</label>
+  <input type="time" id="time" step="3600" required>
+
+  <button id="submitBtn" onclick="submitUser()">Get Matches</button>
+
+  <div id="results"></div>
+
+</div>
+
+<script src="script.js"></script>
+
+</body>
+</html>
