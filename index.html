@@ -146,6 +146,7 @@ const ORB = 8;
 let eph = [];
 let loaded = false;
 
+// Load ephemeris once
 fetch(CSV)
   .then(r => r.text())
   .then(t => {
@@ -202,27 +203,37 @@ function findMatches(){
   }
   localStorage[key] = 1;
 
-  const birthMs = new Date(
-    dob.value + "T" + tob.value + "Z"
-  ).getTime();
-
+  const birthMs = new Date(dob.value + "T" + tob.value + "Z").getTime();
   const rounded = roundTo3Hours(birthMs);
   const base = nearestRow(rounded);
 
-  let stage1 = [];
-  let stage2 = [];
-
+  // Step 1: calculate ranges
+  let venusMin, venusMax, otherMin, otherMax;
   if(g === "male"){
-    // Male Sun ↔ Female Venus
-    stage1 = eph.filter(r => inRange(r.venus, base.sun));
-    // Female Moon ↔ Male Venus
-    stage2 = stage1.filter(r => inRange(r.moon, base.venus));
+    venusMin = (base.venus - ORB + 360) % 360;
+    venusMax = (base.venus + ORB) % 360;
+    otherMin = (base.moon - ORB + 360) % 360;
+    otherMax = (base.moon + ORB) % 360;
   } else {
-    // Female Moon ↔ Male Venus
-    stage1 = eph.filter(r => inRange(r.moon, base.venus));
-    // Male Sun ↔ Female Venus
-    stage2 = stage1.filter(r => inRange(r.sun, base.moon));
+    venusMin = (base.venus - ORB + 360) % 360;
+    venusMax = (base.venus + ORB) % 360;
+    otherMin = (base.sun - ORB + 360) % 360;
+    otherMax = (base.sun + ORB) % 360;
   }
+
+  function inRange360(pos, min, max){
+    if(min < max) return pos >= min && pos <= max;
+    return pos >= min || pos <= max;
+  }
+
+  // Step 2: filter by venus range first
+  let stage1 = eph.filter(r => inRange360(r.venus, venusMin, venusMax));
+
+  // Step 3: filter by other range
+  let stage2 = stage1.filter(r => {
+    if(g === "male") return inRange360(r.moon, otherMin, otherMax);
+    return inRange360(r.sun, otherMin, otherMax);
+  });
 
   const dates = [...new Set(stage2.map(r => r.d.split(" ")[0]))];
 
