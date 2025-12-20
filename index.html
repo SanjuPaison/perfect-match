@@ -10,11 +10,6 @@
 <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
 
 <style>
-
-input, select, button {
-  box-sizing: border-box;
-}
-  
 html, body {
   height: 100%;
   margin: 0;
@@ -34,7 +29,6 @@ body {
   overflow-y: auto;
 }
 
-/* Header */
 .header {
   width: 100%;
   max-width: 420px;
@@ -45,7 +39,6 @@ body {
 
 .header img {
   height: 40px;
-  display: block;
 }
 
 .header a {
@@ -58,7 +51,6 @@ body {
   font-size: 17px;
 }
 
-/* Tool */
 .tool {
   width: 100%;
   max-width: 420px;
@@ -72,20 +64,8 @@ body {
 
 h1 {
   font-size: 20px;
-  margin-bottom: 18px;
+  margin-bottom: 20px;
   text-align: center;
-}
-
-.notice {
-  font-size: 13px;
-  margin-bottom: 16px;
-  text-align: justify;
-}
-
-.warning {
-  font-size: 13px;
-  margin-bottom: 18px;
-  color: #ffeaea;
 }
 
 label {
@@ -100,6 +80,7 @@ input, select, button {
   margin-bottom: 16px;
   font-size: 15px;
   font-family: 'Open Sans', sans-serif;
+  box-sizing: border-box;
 }
 
 button {
@@ -110,28 +91,11 @@ button {
   font-weight: 600;
 }
 
-button:disabled {
-  opacity: 0.7;
-}
-
-/* Results */
-#results {
+#result {
   margin-top: 16px;
-  text-align: justify;
-}
-
-.result-heading {
-  font-size: 14px;
-  font-weight: 600;
-  text-align: center;
-  margin-bottom: 8px;
-}
-
-.result-text {
   font-size: 13px;
 }
 
-/* Links */
 .site-link {
   margin-top: 24px;
   font-weight: 600;
@@ -142,13 +106,6 @@ button:disabled {
   color: #ffffff;
   text-decoration: none;
 }
-
-/* Mobile */
-@media (max-width: 480px) {
-  .header img {
-    height: 30px;
-  }
-}
 </style>
 </head>
 
@@ -156,51 +113,97 @@ button:disabled {
 
 <div class="header site-link">
   <a href="https://lifeprediction.net">
-    <img src="https://assets.nicepagecdn.com/0b5dbf35/6598838/images/Untitled111.png" alt="Logo">
+    <img src="https://assets.nicepagecdn.com/0b5dbf35/6598838/images/Untitled111.png">
     LIFE PREDICTION
   </a>
 </div>
 
 <div class="tool">
-
   <h1>PERFECT MATCH</h1>
 
-  <div class="notice">
-    This calculation uses planetary positions in <strong>UTC / GMT</strong>.
-    If your birth time was recorded in local time, please convert it before submitting.
-  </div>
-
-  <div class="warning">
-    Double-check your birth date, time, and email carefully.<br>
-    Only one submission per email address per day is allowed.
-  </div>
-
-  <label>EMAIL</label>
-  <input type="email" id="email" required>
-
-  <label>GENDER</label>
-  <select id="gender">
-    <option value="male">Male</option>
-    <option value="female">Female</option>
+  <label>Your Planet</label>
+  <select id="userPlanet">
+    <option value="Sun">Sun</option>
+    <option value="Moon">Moon</option>
+    <option value="Venus">Venus</option>
   </select>
 
-  <label>BIRTH DATE (UTC)</label>
-  <input type="date" id="date" required>
+  <label>Your Planet Degree (0–360)</label>
+  <input type="number" id="userDegree" min="0" max="360">
 
-  <label>BIRTH TIME (UTC)</label>
-  <input type="time" id="time" step="3600" required>
+  <button onclick="findMatches()">CHECK MATCHES</button>
 
-  <button id="submitBtn" onclick="submitUser()">CHECK MATCHES</button>
-
-  <div id="results"></div>
+  <div id="result"></div>
 
   <div class="site-link">
     <a href="https://lifeprediction.net">LIFEPREDICTION.NET</a>
   </div>
-
 </div>
 
-<script src="script.js"></script>
+<script>
+const ORB = 8;
+
+function angularDifference(a, b) {
+  let diff = Math.abs(a - b);
+  if (diff > 180) diff = 360 - diff;
+  return diff;
+}
+
+function isPerfectMatch(a, b) {
+  const d = angularDifference(a, b);
+  return Math.abs(d - 0) <= ORB || Math.abs(d - 120) <= ORB;
+}
+
+async function findMatches() {
+  document.getElementById("result").innerHTML = "Checking matches…";
+
+  const planet = document.getElementById("userPlanet").value;
+  const degree = parseFloat(document.getElementById("userDegree").value);
+
+  if (isNaN(degree)) {
+    document.getElementById("result").innerHTML = "Please enter a valid degree.";
+    return;
+  }
+
+  const response = await fetch("ephemeris_3hour_1940_2030.csv");
+  const text = await response.text();
+  const rows = text.split("\n");
+
+  let matches = [];
+
+  for (let i = 1; i < rows.length; i++) {
+    const cols = rows[i].split(",");
+    if (cols.length < 4) continue;
+
+    const date = cols[0];
+    const sun = parseFloat(cols[1]);
+    const moon = parseFloat(cols[2]);
+    const venus = parseFloat(cols[3]);
+
+    let otherDegree =
+      planet === "Sun" ? venus :
+      planet === "Moon" ? venus :
+      planet === "Venus" ? sun : null;
+
+    if (otherDegree === null) continue;
+
+    if (isPerfectMatch(degree, otherDegree)) {
+      matches.push(date);
+    }
+  }
+
+  if (matches.length === 0) {
+    document.getElementById("result").innerHTML =
+      "No perfect matches found in the current date range.";
+    return;
+  }
+
+  document.getElementById("result").innerHTML =
+    "<b>Perfect Matches (UTC birth dates):</b><br><br>" +
+    matches.slice(0, 200).join("<br>") +
+    "<br><br><i>You will be notified if someone with one of these birth dates joins.</i>";
+}
+</script>
 
 </body>
 </html>
