@@ -18,15 +18,16 @@ html, body {
   line-height: 150%;
   letter-spacing: 1.5px;
 }
+
 body {
   display: flex;
-  justify-content: flex-start;
-  align-items: center;
   flex-direction: column;
+  align-items: center;
   padding: 20px;
   box-sizing: border-box;
   overflow-y: auto;
 }
+
 .header {
   width: 100%;
   max-width: 420px;
@@ -34,9 +35,11 @@ body {
   align-items: center;
   margin-bottom: 24px;
 }
+
 .header img {
   height: 40px;
 }
+
 .header a {
   display: flex;
   align-items: center;
@@ -46,33 +49,38 @@ body {
   text-decoration: none;
   font-size: 17px;
 }
+
 .tool {
   width: 100%;
   max-width: 420px;
-  padding: 24px;
+  padding: 28px;
   border: 2px solid #ffffff;
   border-radius: 14px;
   background-color: #AB4A4F;
   color: #ffffff;
   box-sizing: border-box;
 }
+
 h1 {
   font-size: 20px;
   margin-bottom: 16px;
   text-align: center;
 }
+
 label {
   display: block;
   margin-bottom: 6px;
   font-weight: 600;
 }
+
 input, select, button {
   width: 100%;
-  padding: 10px;
+  padding: 12px;
   margin-bottom: 16px;
   font-size: 15px;
   box-sizing: border-box;
 }
+
 button {
   background-color: #ffffff;
   color: #AB4A4F;
@@ -80,21 +88,25 @@ button {
   font-weight: 600;
   cursor: pointer;
 }
+
 #result {
-  margin-top: 16px;
+  margin-top: 18px;
   font-size: 13px;
   text-align: center;
 }
+
 .warning {
   font-size: 12px;
   text-align: center;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
+
 .site-link {
   margin-top: 24px;
   text-align: center;
   font-weight: 600;
 }
+
 .site-link a {
   color: #ffffff;
   text-decoration: none;
@@ -116,7 +128,7 @@ button {
 
 <div class="warning">
 ⚠ Use UTC/GMT birth time<br>
-⚠ Only one submission per email
+⚠ Only one submission per email per day
 </div>
 
 <label>GENDER</label>
@@ -139,7 +151,7 @@ button {
 <div id="result"></div>
 
 <div class="site-link">
-<a href="https://lifeprediction.net">LIFEPREDICTION.NET</a>
+  <a href="https://lifeprediction.net">LIFEPREDICTION.NET</a>
 </div>
 </div>
 
@@ -150,107 +162,90 @@ const ORB = 8;
 let eph = [];
 let loaded = false;
 
-// Load ephemeris once
 fetch(CSV)
   .then(r => r.text())
   .then(t => {
     const rows = t.trim().split("\n").slice(1);
     eph = rows.map(r => {
-      const [dt,s,m,v] = r.split(",");
+      const [dt, sun, moon, venus] = r.split(",");
       return {
-        t: new Date(dt + "Z").getTime(),
-        sun: +s,
-        moon: +m,
-        venus: +v,
+        t: new Date(dt + " UTC").getTime(),
+        sun: +sun,
+        moon: +moon,
+        venus: +venus,
         d: dt
       };
     });
     loaded = true;
   });
 
-// 360° range check
-function inRange360(pos, min, max){
-  if(min <= max) return pos >= min && pos <= max;
-  return pos >= min || pos <= max;
+function inRange(val, center){
+  let d = Math.abs(val - center);
+  return d <= ORB || Math.abs(d - 360) <= ORB;
 }
 
-// Round birth time to nearest 3-hour ephemeris slot
-function roundTo3Hours(ms){
-  const step = 3 * 60 * 60 * 1000;
-  return Math.round(ms / step) * step;
-}
-
-// Find nearest ephemeris row
-function nearestRow(time){
-  let best = eph[0];
-  let min = Math.abs(best.t - time);
-  for(const r of eph){
-    const d = Math.abs(r.t - time);
-    if(d < min){
-      min = d;
-      best = r;
-    }
-  }
-  return best;
+function nearestRow(ms){
+  return eph.reduce((a, b) =>
+    Math.abs(b.t - ms) < Math.abs(a.t - ms) ? b : a
+  );
 }
 
 function findMatches(){
+
+  const result = document.getElementById("result");
+
   if(!loaded){
     result.innerHTML = "Loading ephemeris… please wait.";
     return;
   }
 
+  const g = gender.value;
   const emailVal = email.value.toLowerCase();
   const key = emailVal + "_" + new Date().toISOString().slice(0,10);
+
   if(localStorage[key]){
     alert("Only one submission per day. Please double-check before submitting.");
     return;
   }
   localStorage[key] = 1;
 
-  const g = gender.value;
-  const birthMs = new Date(dob.value + "T" + tob.value + "Z").getTime();
-  const base = nearestRow(roundTo3Hours(birthMs));
+  const birthMs = new Date(
+    dob.value + "T" + tob.value + "Z"
+  ).getTime();
 
-  let firstPlanet, secondPlanet;
-  let firstMin, firstMax, secondMin, secondMax;
+  const base = nearestRow(birthMs);
 
+  let venusCenter, otherCenter;
+
+  // STEP 1: Base positions
   if(g === "male"){
-    // Male → Female
-    // Female Venus around Male Sun
-    firstPlanet = "venus";
-    firstMin = (base.sun - ORB + 360) % 360;
-    firstMax = (base.sun + ORB) % 360;
-
-    // Female Moon around Male Venus
-    secondPlanet = "moon";
-    secondMin = (base.venus - ORB + 360) % 360;
-    secondMax = (base.venus + ORB) % 360;
-
+    otherCenter = base.sun;
+    venusCenter = base.venus;
   } else {
-    // Female → Male
-    // Male Venus around Female Moon
-    firstPlanet = "venus";
-    firstMin = (base.moon - ORB + 360) % 360;
-    firstMax = (base.moon + ORB) % 360;
-
-    // Male Sun around Female Venus
-    secondPlanet = "sun";
-    secondMin = (base.venus - ORB + 360) % 360;
-    secondMax = (base.venus + ORB) % 360;
+    otherCenter = base.moon;
+    venusCenter = base.venus;
   }
 
-  // Stage 1: filter by Venus range
-  let stage1 = eph.filter(r =>
-    inRange360(r[firstPlanet], firstMin, firstMax)
-  );
+  // STEP 2: Calculate ranges
+  let venusFilter, otherFilter;
 
-  // Stage 2: filter by second planet range
-  let stage2 = stage1.filter(r =>
-    inRange360(r[secondPlanet], secondMin, secondMax)
-  );
+  if(g === "male"){
+    // female venus ↔ male sun
+    venusFilter = r => inRange(r.venus, otherCenter);
+    otherFilter = r => inRange(r.moon, venusCenter);
+  } else {
+    // male venus ↔ female moon
+    venusFilter = r => inRange(r.venus, otherCenter);
+    otherFilter = r => inRange(r.sun, venusCenter);
+  }
 
-  const dates = [...new Set(stage2.map(r => r.d.split(" ")[0]))];
+  // STEP 3: Two-stage filtering
+  const stage1 = eph.filter(venusFilter);
+  const stage2 = stage1.filter(otherFilter);
+
+  const dates = [...new Set(
+    stage2.map(r => r.d.split(" ")[0])
+  )];
 
   result.innerHTML = dates.length
     ? dates.join("<br>")
