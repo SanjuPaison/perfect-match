@@ -144,51 +144,73 @@ button {
 const CSV = "ephemeris_3hour_1940_2030.csv";
 const ORB = 8;
 let eph = [];
+let loaded = false;
 
-fetch(CSV).then(r=>r.text()).then(t=>{
-  const rows=t.trim().split("\n").slice(1);
-  eph = rows.map(r=>{
-    const [dt,s,m,v]=r.split(",");
-    return {
-      t: new Date(dt+" UTC").getTime(),
-      sun:+s, moon:+m, venus:+v, d:dt
-    };
+fetch(CSV)
+  .then(r => r.text())
+  .then(t => {
+    const rows = t.trim().split("\n").slice(1);
+    eph = rows.map(r => {
+      const [dt,s,m,v] = r.split(",");
+      return {
+        t: new Date(dt + " UTC").getTime(),
+        sun: +s,
+        moon: +m,
+        venus: +v,
+        d: dt
+      };
+    });
+    loaded = true;
   });
-});
 
 function inRange(a,b){
-  let d=Math.abs(a-b);
-  return d<=ORB || Math.abs(d-360)<=ORB;
+  let d = Math.abs(a - b);
+  return d <= ORB || Math.abs(d - 360) <= ORB;
 }
 
 function nearestRow(time){
-  return eph.reduce((a,b)=>Math.abs(b.t-time)<Math.abs(a.t-time)?b:a);
+  return eph.reduce((a,b) =>
+    Math.abs(b.t - time) < Math.abs(a.t - time) ? b : a
+  );
 }
 
 function findMatches(){
-  const g=gender.value;
-  const email=emailInput=email.value.toLowerCase();
-  const key=email+"_"+new Date().toISOString().slice(0,10);
-  if(localStorage[key]){ alert("One submission per day."); return; }
-  localStorage[key]=1;
-
-  const t=new Date(dob.value+"T"+tob.value+"Z").getTime();
-  const b=nearestRow(t);
-
-  let stage1,stage2;
-
-  if(g==="male"){
-    stage1=eph.filter(r=>inRange(r.venus,b.sun));
-    stage2=stage1.filter(r=>inRange(r.moon,b.venus));
-  } else {
-    stage1=eph.filter(r=>inRange(r.sun,b.venus));
-    stage2=stage1.filter(r=>inRange(r.venus,b.moon));
+  if(!loaded){
+    result.innerHTML = "Loading ephemeris… please wait.";
+    return;
   }
 
-  const dates=[...new Set(stage2.map(r=>r.d.split(" ")[0]))];
-  result.innerHTML=dates.length
+  const g = gender.value;
+  const emailVal = email.value.toLowerCase();
+  const key = emailVal + "_" + new Date().toISOString().slice(0,10);
+
+  if(localStorage[key]){
+    alert("Only one submission per day. Please double-check before submitting.");
+    return;
+  }
+  localStorage[key] = 1;
+
+  const birthTime = new Date(
+    dob.value + "T" + tob.value + "Z"
+  ).getTime();
+
+  const base = nearestRow(birthTime);
+
+  let stage1, stage2;
+
+  if(g === "male"){
+    stage1 = eph.filter(r => inRange(r.venus, base.sun));
+    stage2 = stage1.filter(r => inRange(r.moon, base.venus));
+  } else {
+    stage1 = eph.filter(r => inRange(r.sun, base.venus));
+    stage2 = stage1.filter(r => inRange(r.venus, base.moon));
+  }
+
+  const dates = [...new Set(stage2.map(r => r.d.split(" ")[0]))];
+
+  result.innerHTML = dates.length
     ? dates.join("<br>")
-    : "No perfect matches found.";
+    : "No perfect matches found in this date range.";
 }
 </script>
 
