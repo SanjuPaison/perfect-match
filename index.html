@@ -18,18 +18,21 @@ html, body {
   line-height: 150%;
   letter-spacing: 1.5px;
 }
+
 body {
   display: flex;
-  align-items: center;
   flex-direction: column;
+  align-items: center;
   padding: 20px;
   box-sizing: border-box;
 }
+
 .header {
   width: 100%;
   max-width: 420px;
   margin-bottom: 24px;
 }
+
 .header a {
   display: flex;
   align-items: center;
@@ -37,37 +40,40 @@ body {
   color: #ffffff;
   font-weight: 600;
   text-decoration: none;
-  font-size: 17px;
 }
-.header img {
-  height: 40px;
-}
+
+.header img { height: 40px; }
+
 .tool {
   width: 100%;
   max-width: 420px;
-  padding: 24px;
+  padding: 28px;
   border: 2px solid #ffffff;
   border-radius: 14px;
   background-color: #AB4A4F;
   color: #ffffff;
+  box-sizing: border-box;
 }
+
 h1 {
+  text-align: center;
   font-size: 20px;
   margin-bottom: 16px;
-  text-align: center;
 }
+
 label {
   display: block;
   margin-bottom: 6px;
   font-weight: 600;
 }
+
 input, select, button {
   width: 100%;
   padding: 12px;
   margin-bottom: 16px;
-  font-size: 15px;
   box-sizing: border-box;
 }
+
 button {
   background-color: #ffffff;
   color: #AB4A4F;
@@ -75,24 +81,17 @@ button {
   font-weight: 600;
   cursor: pointer;
 }
+
+.warning {
+  font-size: 12px;
+  text-align: center;
+  margin-bottom: 14px;
+}
+
 #result {
   margin-top: 18px;
   font-size: 13px;
   text-align: center;
-}
-.warning {
-  font-size: 12px;
-  text-align: center;
-  margin-bottom: 12px;
-}
-.site-link {
-  margin-top: 24px;
-  text-align: center;
-  font-weight: 600;
-}
-.site-link a {
-  color: #ffffff;
-  text-decoration: none;
 }
 </style>
 </head>
@@ -111,7 +110,7 @@ button {
 
 <div class="warning">
 ⚠ Use UTC/GMT birth time<br>
-⚠ Only one submission per email
+⚠ One submission per email per day
 </div>
 
 <label>GENDER</label>
@@ -132,46 +131,55 @@ button {
 <button onclick="findMatches()">CHECK MATCHES</button>
 
 <div id="result"></div>
-
-<div class="site-link">
-  <a href="https://lifeprediction.net">LIFEPREDICTION.NET</a>
-</div>
 </div>
 
 <script>
 const CSV = "ephemeris_3hour_1940_2030.csv";
 const ORB = 8;
+
 let eph = [];
 let loaded = false;
 
+/* -------- LOAD EPHEMERIS (CORRECT FOR YOUR CSV) -------- */
 fetch(CSV)
   .then(r => r.text())
   .then(t => {
-    eph = t.trim().split("\n").slice(1).map(r => {
-      const [dt,s,m,v] = r.split(",");
+    const lines = t.trim().split("\n");
+    const header = lines[0].split(",");
+
+    const iDate  = header.indexOf("Date_UTC");
+    const iTime  = header.indexOf("Time_UTC");
+    const iSun   = header.indexOf("Sun_Longitude");
+    const iMoon  = header.indexOf("Moon_Longitude");
+    const iVenus = header.indexOf("Venus_Longitude");
+
+    eph = lines.slice(1).map(r => {
+      const c = r.split(",");
       return {
-        t: new Date(dt + " UTC").getTime(),
-        sun: +s,
-        moon: +m,
-        venus: +v,
-        d: dt
+        t: Date.parse(c[iDate] + "T" + c[iTime] + "Z"),
+        sun:   +c[iSun],
+        moon:  +c[iMoon],
+        venus: +c[iVenus],
+        d: c[iDate]
       };
     });
+
     loaded = true;
   });
 
-function inRange(x, center){
-  let d = Math.abs(x - center);
+function inRange(v, c){
+  const d = Math.abs(v - c);
   return d <= ORB || Math.abs(d - 360) <= ORB;
 }
 
-function nearestRow(time){
+function nearestRow(ms){
   return eph.reduce((a,b) =>
-    Math.abs(b.t - time) < Math.abs(a.t - time) ? b : a
+    Math.abs(b.t - ms) < Math.abs(a.t - ms) ? b : a
   );
 }
 
 function findMatches(){
+
   const result = document.getElementById("result");
 
   if(!loaded){
@@ -179,36 +187,35 @@ function findMatches(){
     return;
   }
 
-  const g = gender.value;
-  const birthTime = new Date(
+  const key = email.value.toLowerCase() + "_" +
+              new Date().toISOString().slice(0,10);
+  if(localStorage[key]){
+    alert("Only one submission per day.");
+    return;
+  }
+  localStorage[key] = 1;
+
+  const birthMs = new Date(
     dob.value + "T" + tob.value + "Z"
   ).getTime();
 
-  const base = nearestRow(birthTime);
+  const base = nearestRow(birthMs);
 
-  let venusCenter, otherCenter, otherPlanet;
+  let stage1, stage2;
 
-  if(g === "male"){
-    // Male input → find female matches
-    venusCenter = base.sun;     // female Venus vs male Sun
-    otherCenter = base.venus;   // female Moon vs male Venus
-    otherPlanet = "moon";
+  if(gender.value === "male"){
+    // Female Venus centered on Male Sun
+    stage1 = eph.filter(r => inRange(r.venus, base.sun));
+    // Female Moon centered on Male Venus
+    stage2 = stage1.filter(r => inRange(r.moon, base.venus));
   } else {
-    // Female input → find male matches
-    venusCenter = base.moon;    // male Venus vs female Moon
-    otherCenter = base.venus;   // male Sun vs female Venus
-    otherPlanet = "sun";
+    // Male Venus centered on Female Moon
+    stage1 = eph.filter(r => inRange(r.venus, base.moon));
+    // Male Sun centered on Female Venus
+    stage2 = stage1.filter(r => inRange(r.sun, base.venus));
   }
 
-  // Stage 1: Venus range
-  let matches = eph.filter(r => inRange(r.venus, venusCenter));
-
-  // Stage 2: Other planet range
-  matches = matches.filter(r => inRange(r[otherPlanet], otherCenter));
-
-  const dates = [...new Set(
-    matches.map(r => r.d.split(" ")[0])
-  )];
+  const dates = [...new Set(stage2.map(r => r.d))];
 
   result.innerHTML = dates.length
     ? dates.join("<br>")
