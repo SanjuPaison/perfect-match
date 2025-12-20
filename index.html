@@ -140,7 +140,7 @@ const ORB = 8;
 let eph = [];
 let loaded = false;
 
-/* -------- LOAD EPHEMERIS (CORRECT FOR YOUR CSV) -------- */
+/* -------- LOAD EPHEMERIS -------- */
 fetch(CSV)
   .then(r => r.text())
   .then(t => {
@@ -178,18 +178,18 @@ function nearestRow(ms){
   );
 }
 
-function findMatches(){
-
+/* -------- DEBUG-FRIENDLY MATCH FUNCTION -------- */
+function findMatches() {
   const result = document.getElementById("result");
 
-  if(!loaded){
+  if (!loaded) {
     result.innerHTML = "Loading ephemeris…";
     return;
   }
 
   const key = email.value.toLowerCase() + "_" +
-              new Date().toISOString().slice(0,10);
-  if(localStorage[key]){
+              new Date().toISOString().slice(0, 10);
+  if (localStorage[key]) {
     alert("Only one submission per day.");
     return;
   }
@@ -203,7 +203,7 @@ function findMatches(){
 
   let stage1, stage2;
 
-  if(gender.value === "male"){
+  if (gender.value === "male") {
     // Female Venus centered on Male Sun
     stage1 = eph.filter(r => inRange(r.venus, base.sun));
     // Female Moon centered on Male Venus
@@ -215,11 +215,19 @@ function findMatches(){
     stage2 = stage1.filter(r => inRange(r.sun, base.venus));
   }
 
+  // Debug output
+  let debugMsg = `
+    Base planetary positions:<br>
+    Sun: ${base.sun}, Moon: ${base.moon}, Venus: ${base.venus}<br>
+    Stage 1 matches: ${stage1.length}<br>
+    Stage 2 matches: ${stage2.length}<br>
+  `;
+
   const dates = [...new Set(stage2.map(r => r.d))];
 
-  result.innerHTML = dates.length
-    ? dates.join("<br>")
-    : "No perfect matches found for this date range.";
+  result.innerHTML = debugMsg + "<br>" + (
+    dates.length ? dates.join("<br>") : "No perfect matches found for this date range."
+  );
 }
 </script>
 
