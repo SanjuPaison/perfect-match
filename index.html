@@ -11,9 +11,8 @@
 
 <style>
 html, body {
-  height: 100%;
   margin: 0;
-  background-color: #AB4A4F;
+  background: #AB4A4F;
   font-family: 'Open Sans', sans-serif;
   letter-spacing: 1.5px;
 }
@@ -24,30 +23,28 @@ body {
   padding: 20px;
 }
 .header {
-  width: 100%;
   max-width: 420px;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 .header a {
   display: flex;
   align-items: center;
   gap: 10px;
   color: #fff;
-  font-weight: 600;
   text-decoration: none;
+  font-weight: 600;
 }
 .header img { height: 40px; }
 .tool {
-  width: 100%;
   max-width: 420px;
+  width: 100%;
   padding: 28px;
   border: 2px solid #fff;
   border-radius: 14px;
-  background: #AB4A4F;
   color: #fff;
 }
 h1 { text-align: center; font-size: 20px; }
-label { font-weight: 600; display:block; margin-top:10px; }
+label { font-weight: 600; margin-top: 10px; display: block; }
 input, select, button {
   width: 100%;
   padding: 12px;
@@ -107,14 +104,19 @@ const ORB = 8;
 let eph = [];
 let loaded = false;
 
-/* ========= LOAD EPHEMERIS (TAB SAFE + BOM SAFE) ========= */
+/* ========= SAFE UTC PARSER ========= */
+function parseUTC(date, time) {
+  const [y,m,d] = date.split("-").map(Number);
+  const [h,min] = time.padStart(5,"0").split(":").map(Number);
+  return Date.UTC(y, m-1, d, h, min || 0);
+}
+
+/* ========= LOAD & INDEX EPHEMERIS ========= */
 fetch(CSV)
   .then(r => r.text())
   .then(t => {
     const lines = t.trim().split("\n");
-
-    // remove BOM if present
-    const header = lines[0].replace("\uFEFF", "").split("\t");
+    const header = lines[0].replace("\uFEFF","").split("\t");
 
     const iDate  = header.indexOf("Date_UTC");
     const iTime  = header.indexOf("Time_UTC");
@@ -125,16 +127,16 @@ fetch(CSV)
     eph = lines.slice(1).map(r => {
       const c = r.split("\t").map(v => v.trim());
       return {
-        t: Date.parse(c[iDate] + "T" + c[iTime] + "Z"),
-        sun:   parseFloat(c[iSun]),
-        moon:  parseFloat(c[iMoon]),
-        venus: parseFloat(c[iVenus]),
+        t: parseUTC(c[iDate], c[iTime]),
+        sun: +c[iSun],
+        moon: +c[iMoon],
+        venus: +c[iVenus],
         d: c[iDate]
       };
     });
 
-    console.log("Ephemeris loaded:", eph[0]);
     loaded = true;
+    console.log("Ephemeris OK:", eph[0]);
   });
 
 function inRange(v, c) {
@@ -142,21 +144,27 @@ function inRange(v, c) {
   return d <= ORB || Math.abs(d - 360) <= ORB;
 }
 
+/* ========= FAST NEAREST ROW ========= */
 function nearestRow(ms) {
-  return eph.reduce((a, b) =>
-    Math.abs(b.t - ms) < Math.abs(a.t - ms) ? b : a
-  );
+  let best = eph[0];
+  let min = Math.abs(best.t - ms);
+  for (let r of eph) {
+    const d = Math.abs(r.t - ms);
+    if (d < min) { min = d; best = r; }
+  }
+  return best;
 }
 
+/* ========= MATCH ENGINE ========= */
 function findMatches() {
   const result = document.getElementById("result");
+  if (!loaded) { result.innerHTML = "Loading ephemeris…"; return; }
 
-  if (!loaded) {
-    result.innerHTML = "Loading ephemeris…";
-    return;
-  }
+  const key = email.value.toLowerCase() + "_" + new Date().toISOString().slice(0,10);
+  if (localStorage[key]) { alert("Only one submission per day."); return; }
+  localStorage[key] = 1;
 
-  const birthMs = new Date(dob.value + "T" + tob.value + "Z").getTime();
+  const birthMs = parseUTC(dob.value, tob.value);
   const base = nearestRow(birthMs);
 
   let stage1, stage2;
@@ -172,7 +180,7 @@ function findMatches() {
   const dates = [...new Set(stage2.map(r => r.d))];
 
   result.innerHTML = `
-    Base positions:<br>
+    <b>Base positions</b><br>
     Sun: ${base.sun}<br>
     Moon: ${base.moon}<br>
     Venus: ${base.venus}<br><br>
