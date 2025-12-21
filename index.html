@@ -129,10 +129,10 @@ button {
 <label id="captchaLabel"></label>
 <input type="text" id="captchaAnswer" placeholder="Your answer">
 
-<!-- HONEYPOT (HIDDEN) -->
+<!-- HONEYPOT -->
 <input type="text" id="website" style="display:none">
 
-<button onclick="findMatches()">CHECK MATCHES</button>
+<button id="submitBtn" onclick="findMatches()">CHECK MATCHES</button>
 
 <div id="result"></div>
 </div>
@@ -145,6 +145,7 @@ let eph = [];
 let loaded = false;
 let captchaCorrect = "";
 let pageLoadTime = Date.now();
+let hasSubmitted = false;
 
 /* CAPTCHA */
 function generateCaptcha() {
@@ -154,7 +155,6 @@ function generateCaptcha() {
     { q: "What is double of 6?", a: "12" },
     { q: "What is 10 − 3?", a: "7" }
   ];
-
   const pick = questions[Math.floor(Math.random() * questions.length)];
   captchaCorrect = pick.a;
   document.getElementById("captchaLabel").innerText =
@@ -195,6 +195,12 @@ function inRange(v, c){
 /* MATCH ENGINE */
 function findMatches(){
   const result = document.getElementById("result");
+  const btn = document.getElementById("submitBtn");
+
+  if (hasSubmitted) {
+    result.innerHTML = "You have already checked your matches.";
+    return;
+  }
 
   /* BOT TRAP */
   if (document.getElementById("website").value !== "") {
@@ -246,6 +252,12 @@ function findMatches(){
   result.innerHTML = dates.length
     ? `<h2>Perfect Match Birthdays</h2>${dates.join("<br>")}`
     : "No perfect matches found.";
+
+  /* LOCK SUBMISSION */
+  hasSubmitted = true;
+  btn.disabled = true;
+  btn.style.opacity = "0.6";
+  btn.style.cursor = "not-allowed";
 }
 </script>
 
