@@ -187,8 +187,12 @@ fetch(CSV)
   });
 
 function inRange(v, c){
-  const d = Math.abs(v - c);
-  return d <= ORB || Math.abs(d - 360) <= ORB;
+  const aspects = [0, 120, 240];
+
+  return aspects.some(a => {
+    const diff = Math.abs((v - c - a + 360) % 360);
+    return diff <= ORB || Math.abs(diff - 360) <= ORB;
+  });
 }
 
 /* MATCH ENGINE */
