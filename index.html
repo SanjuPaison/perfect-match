@@ -15,7 +15,6 @@ html, body {
   margin: 0;
   background-color: #AB4A4F;
   font-family: 'Open Sans', sans-serif;
-  line-height: 150%;
   letter-spacing: 1.5px;
 }
 body {
@@ -23,7 +22,6 @@ body {
   flex-direction: column;
   align-items: center;
   padding: 20px;
-  box-sizing: border-box;
 }
 .header {
   width: 100%;
@@ -34,7 +32,7 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
-  color: #ffffff;
+  color: #fff;
   font-weight: 600;
   text-decoration: none;
 }
@@ -43,39 +41,24 @@ body {
   width: 100%;
   max-width: 420px;
   padding: 28px;
-  border: 2px solid #ffffff;
+  border: 2px solid #fff;
   border-radius: 14px;
-  background-color: #AB4A4F;
-  color: #ffffff;
-  box-sizing: border-box;
+  background: #AB4A4F;
+  color: #fff;
 }
-h1 {
-  text-align: center;
-  font-size: 20px;
-  margin-bottom: 16px;
-}
-label {
-  display: block;
-  margin-bottom: 6px;
-  font-weight: 600;
-}
+h1 { text-align: center; font-size: 20px; }
+label { font-weight: 600; display:block; margin-top:10px; }
 input, select, button {
   width: 100%;
   padding: 12px;
-  margin-bottom: 16px;
-  box-sizing: border-box;
+  margin-top: 6px;
 }
 button {
-  background-color: #ffffff;
+  background: #fff;
   color: #AB4A4F;
-  border: none;
   font-weight: 600;
-  cursor: pointer;
-}
-.warning {
-  font-size: 12px;
-  text-align: center;
-  margin-bottom: 14px;
+  border: none;
+  margin-top: 16px;
 }
 #result {
   margin-top: 18px;
@@ -96,11 +79,6 @@ button {
 
 <div class="tool">
 <h1>PERFECT MATCH</h1>
-
-<div class="warning">
-⚠ Use UTC/GMT birth time<br>
-⚠ One submission per email per day
-</div>
 
 <label>GENDER</label>
 <select id="gender">
@@ -123,18 +101,20 @@ button {
 </div>
 
 <script>
-const CSV = "ephemeris_3hour_1940_2030.csv"; // 3-hour ephemeris
+const CSV = "ephemeris_3hour_1940_2030.csv";
 const ORB = 8;
 
 let eph = [];
 let loaded = false;
 
-// -------- LOAD EPHEMERIS (handles tab or comma) --------
+/* ========= LOAD EPHEMERIS (TAB SAFE + BOM SAFE) ========= */
 fetch(CSV)
   .then(r => r.text())
   .then(t => {
     const lines = t.trim().split("\n");
-    const header = lines[0].includes("\t") ? lines[0].split("\t") : lines[0].split(",");
+
+    // remove BOM if present
+    const header = lines[0].replace("\uFEFF", "").split("\t");
 
     const iDate  = header.indexOf("Date_UTC");
     const iTime  = header.indexOf("Time_UTC");
@@ -143,40 +123,31 @@ fetch(CSV)
     const iVenus = header.indexOf("Venus_Longitude");
 
     eph = lines.slice(1).map(r => {
-      const c = r.includes("\t") ? r.split("\t").map(v=>v.trim()) : r.split(",").map(v=>v.trim());
+      const c = r.split("\t").map(v => v.trim());
       return {
         t: Date.parse(c[iDate] + "T" + c[iTime] + "Z"),
-        sun:   +c[iSun],
-        moon:  +c[iMoon],
-        venus: +c[iVenus],
+        sun:   parseFloat(c[iSun]),
+        moon:  parseFloat(c[iMoon]),
+        venus: parseFloat(c[iVenus]),
         d: c[iDate]
       };
     });
 
+    console.log("Ephemeris loaded:", eph[0]);
     loaded = true;
   });
 
-function inRange(v, c){
+function inRange(v, c) {
   const d = Math.abs(v - c);
   return d <= ORB || Math.abs(d - 360) <= ORB;
 }
 
-// -------- NEAREST ROW WITH VALID VENUS --------
-function nearestRowWithVenus(ms){
-  let closest = null;
-  let minDiff = Infinity;
-  for(let r of eph){
-    if(isNaN(r.venus) || isNaN(r.sun) || isNaN(r.moon)) continue;
-    let diff = Math.abs(r.t - ms);
-    if(diff < minDiff){
-      minDiff = diff;
-      closest = r;
-    }
-  }
-  return closest;
+function nearestRow(ms) {
+  return eph.reduce((a, b) =>
+    Math.abs(b.t - ms) < Math.abs(a.t - ms) ? b : a
+  );
 }
 
-// -------- FIND MATCHES --------
 function findMatches() {
   const result = document.getElementById("result");
 
@@ -185,43 +156,30 @@ function findMatches() {
     return;
   }
 
-  const key = email.value.toLowerCase() + "_" + new Date().toISOString().slice(0, 10);
-  if (localStorage[key]) {
-    alert("Only one submission per day.");
-    return;
-  }
-  localStorage[key] = 1;
-
   const birthMs = new Date(dob.value + "T" + tob.value + "Z").getTime();
-  const base = nearestRowWithVenus(birthMs);
-
-  if (!base) {
-    result.innerHTML = "Error: No valid ephemeris row found with Venus for this date/time.";
-    return;
-  }
+  const base = nearestRow(birthMs);
 
   let stage1, stage2;
 
   if (gender.value === "male") {
-    stage1 = eph.filter(r => !isNaN(r.venus) && inRange(r.venus, base.sun));
-    stage2 = stage1.filter(r => !isNaN(r.moon) && inRange(r.moon, base.venus));
+    stage1 = eph.filter(r => inRange(r.venus, base.sun));
+    stage2 = stage1.filter(r => inRange(r.moon, base.venus));
   } else {
-    stage1 = eph.filter(r => !isNaN(r.venus) && inRange(r.venus, base.moon));
-    stage2 = stage1.filter(r => !isNaN(r.sun) && inRange(r.sun, base.venus));
+    stage1 = eph.filter(r => inRange(r.venus, base.moon));
+    stage2 = stage1.filter(r => inRange(r.sun, base.venus));
   }
-
-  let debugMsg = `
-    Base positions:<br>
-    Sun: ${base.sun}, Moon: ${base.moon}, Venus: ${base.venus}<br>
-    Stage1 matches: ${stage1.length}<br>
-    Stage2 matches: ${stage2.length}<br>
-  `;
 
   const dates = [...new Set(stage2.map(r => r.d))];
 
-  result.innerHTML = debugMsg + "<br>" + (
-    dates.length ? dates.join("<br>") : "No perfect matches found for this date range."
-  );
+  result.innerHTML = `
+    Base positions:<br>
+    Sun: ${base.sun}<br>
+    Moon: ${base.moon}<br>
+    Venus: ${base.venus}<br><br>
+    Stage 1: ${stage1.length}<br>
+    Stage 2: ${stage2.length}<br><br>
+    ${dates.length ? dates.join("<br>") : "No perfect matches found for this date range."}
+  `;
 }
 </script>
 
