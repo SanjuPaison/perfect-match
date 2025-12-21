@@ -16,22 +16,17 @@ html, body {
   font-family: 'Open Sans', sans-serif;
   letter-spacing: 1.5px;
 }
-
 body {
   display: flex;
   flex-direction: column;
   align-items: center;
   padding: 20px;
-  box-sizing: border-box;
 }
-
-/* HEADER */
 .header {
   width: 100%;
   max-width: 420px;
   margin-bottom: 24px;
 }
-
 .header a {
   display: flex;
   align-items: center;
@@ -40,12 +35,7 @@ body {
   font-weight: 600;
   text-decoration: none;
 }
-
-.header img {
-  height: 40px;
-}
-
-/* TOOL BOX */
+.header img { height: 40px; }
 .tool {
   width: 100%;
   max-width: 420px;
@@ -54,46 +44,36 @@ body {
   border-radius: 14px;
   background-color: #AB4A4F;
   color: #ffffff;
-  box-sizing: border-box;
 }
-
 h1 {
   text-align: center;
   font-size: 20px;
   margin-bottom: 18px;
 }
-
-/* FORM */
 label {
   display: block;
   margin-bottom: 6px;
   font-weight: 600;
 }
-
 input, select, button {
   width: 100%;
   padding: 12px;
   margin-bottom: 16px;
-  box-sizing: border-box;
   border-radius: 6px;
   border: none;
 }
-
 button {
   background-color: #ffffff;
   color: #AB4A4F;
   font-weight: 600;
   cursor: pointer;
 }
-
-/* RESULT */
 #result {
   margin-top: 18px;
   font-size: 13px;
   text-align: center;
   line-height: 1.6;
 }
-
 #result h2 {
   font-size: 14px;
   margin-bottom: 10px;
@@ -104,164 +84,95 @@ button {
 
 <body>
 
-<!-- HEADER -->
 <div class="header">
   <a href="https://lifeprediction.net">
-    <img src="https://assets.nicepagecdn.com/0b5dbf35/6598838/images/Untitled111.png" alt="Life Prediction">
+    <img src="https://assets.nicepagecdn.com/0b5dbf35/6598838/images/Untitled111.png">
     LIFE PREDICTION
   </a>
 </div>
 
-<!-- TOOL -->
 <div class="tool">
 <h1>PERFECT MATCH</h1>
 
 <label>GENDER</label>
-<select id="gender">
-  <option value="male">Male</option>
-  <option value="female">Female</option>
+<select id="g">
+  <option value="m">Male</option>
+  <option value="f">Female</option>
 </select>
 
 <label>DATE OF BIRTH (UTC)</label>
-<input type="date" id="dob">
+<input type="date" id="d">
 
-<!-- CAPTCHA -->
-<label id="captchaLabel"></label>
-<input type="text" id="captchaAnswer" placeholder="Your answer">
+<label id="cL"></label>
+<input type="text" id="cA" placeholder="Your answer">
 
-<!-- HONEYPOT -->
-<input type="text" id="website" style="display:none">
+<input type="text" id="w" style="display:none">
 
-<button id="submitBtn" onclick="findMatches()">CHECK MATCHES</button>
+<button id="b" onclick="f()">CHECK MATCHES</button>
 
-<div id="result"></div>
+<div id="r"></div>
 </div>
 
 <script>
-const CSV = "ephemeris_24hour_1940_2030.csv";
-const ORB = 8;
-
-let eph = [];
-let loaded = false;
-let captchaCorrect = "";
-let pageLoadTime = Date.now();
-let hasSubmitted = false;
-
-/* CAPTCHA */
-function generateCaptcha() {
-  const questions = [
-    { q: "How many zodiac signs are there?", a: "12" },
-    { q: "What is 4 + 7?", a: "11" },
-    { q: "What is double of 6?", a: "12" },
-    { q: "What is 10 − 3?", a: "7" }
+(function(){
+const _0x=["ephemeris_24hour_1940_2030.csv","Date_UTC","Sun_Longitude","Moon_Longitude","Venus_Longitude","You have already checked your matches.","Please take a moment before submitting.","Incorrect answer. Try again.","Loading ephemeris…","Please select a birth date.","Birth date not found in ephemeris range.","Perfect Match Birthdays","No perfect matches found."];
+let E=[],L=false,T=Date.now(),S=false,A="",O=10;
+function R(v,c){
+  return[0,120,240].some(a=>{
+    let d=Math.abs((v-c-a+360)%360);
+    return d<=O||Math.abs(d-360)<=O;
+  });
+}
+function Q(){
+  const q=[
+    ["How many zodiac signs are there?","12"],
+    ["What is 4 + 7?","11"],
+    ["What is double of 6?","12"],
+    ["What is 10 − 3?","7"]
   ];
-  const pick = questions[Math.floor(Math.random() * questions.length)];
-  captchaCorrect = pick.a;
-  document.getElementById("captchaLabel").innerText = pick.q;
+  const p=q[Math.floor(Math.random()*q.length)];
+  A=p[1];
+  document.getElementById("cL").innerText=p[0];
 }
-generateCaptcha();
-
-/* LOAD EPHEMERIS */
-fetch(CSV)
-  .then(r => r.text())
-  .then(t => {
-    const lines = t.trim().split(/\r?\n/);
-    const header = lines[0].replace("\uFEFF","").split(",");
-
-    const iDate  = header.indexOf("Date_UTC");
-    const iSun   = header.indexOf("Sun_Longitude");
-    const iMoon  = header.indexOf("Moon_Longitude");
-    const iVenus = header.indexOf("Venus_Longitude");
-
-    eph = lines.slice(1).map(r => {
-      const c = r.split(",");
-      return {
-        d: c[iDate].trim(),
-        sun: Number(c[iSun]),
-        moon: Number(c[iMoon]),
-        venus: Number(c[iVenus])
-      };
-    });
-
-    loaded = true;
+Q();
+fetch(_0x[0]).then(x=>x.text()).then(t=>{
+  const l=t.trim().split(/\r?\n/);
+  const h=l[0].split(",");
+  const iD=h.indexOf(_0x[1]);
+  const iS=h.indexOf(_0x[2]);
+  const iM=h.indexOf(_0x[3]);
+  const iV=h.indexOf(_0x[4]);
+  E=l.slice(1).map(r=>{
+    const c=r.split(",");
+    return{d:c[iD],s:+c[iS],m:+c[iM],v:+c[iV]};
   });
-
-function inRange(v, c){
-  const aspects = [0, 120, 240];
-
-  return aspects.some(a => {
-    const diff = Math.abs((v - c - a + 360) % 360);
-    return diff <= ORB || Math.abs(diff - 360) <= ORB;
-  });
-}
-
-/* MATCH ENGINE */
-function findMatches(){
-  const result = document.getElementById("result");
-  const btn = document.getElementById("submitBtn");
-
-  if (hasSubmitted) {
-    result.innerHTML = "You have already checked your matches.";
-    return;
+  L=true;
+});
+window.f=function(){
+  const r=document.getElementById("r");
+  const b=document.getElementById("b");
+  if(S){r.innerHTML=_0x[5];return;}
+  if(document.getElementById("w").value!=="")return;
+  if(Date.now()-T<3000){r.innerHTML=_0x[6];return;}
+  if(document.getElementById("cA").value.trim()!==A){r.innerHTML=_0x[7];Q();return;}
+  if(!L){r.innerHTML=_0x[8];return;}
+  const d=document.getElementById("d").value;
+  if(!d){r.innerHTML=_0x[9];return;}
+  const B=E.find(x=>x.d===d);
+  if(!B){r.innerHTML=_0x[10];return;}
+  let s1,s2;
+  if(document.getElementById("g").value==="m"){
+    s1=E.filter(x=>R(x.v,B.s));
+    s2=s1.filter(x=>R(x.m,B.v));
+  }else{
+    s1=E.filter(x=>R(x.v,B.m));
+    s2=s1.filter(x=>R(x.s,B.v));
   }
-
-  /* BOT TRAP */
-  if (document.getElementById("website").value !== "") {
-    return;
-  }
-
-  /* TIME CHECK */
-  if (Date.now() - pageLoadTime < 3000) {
-    result.innerHTML = "Please take a moment before submitting.";
-    return;
-  }
-
-  /* CAPTCHA CHECK */
-  if (document.getElementById("captchaAnswer").value.trim() !== captchaCorrect) {
-    result.innerHTML = "Incorrect answer. Try again.";
-    generateCaptcha();
-    return;
-  }
-
-  if(!loaded){
-    result.innerHTML = "Loading ephemeris…";
-    return;
-  }
-
-  const baseDate = dob.value.trim();
-  if(!baseDate){
-    result.innerHTML = "Please select a birth date.";
-    return;
-  }
-
-  const base = eph.find(r => r.d === baseDate);
-  if(!base){
-    result.innerHTML = "Birth date not found in ephemeris range.";
-    return;
-  }
-
-  let stage1, stage2;
-
-  if(gender.value === "male"){
-    stage1 = eph.filter(r => inRange(r.venus, base.sun));
-    stage2 = stage1.filter(r => inRange(r.moon, base.venus));
-  } else {
-    stage1 = eph.filter(r => inRange(r.venus, base.moon));
-    stage2 = stage1.filter(r => inRange(r.sun, base.venus));
-  }
-
-  const dates = stage2.map(r => r.d);
-
-  result.innerHTML = dates.length
-    ? `<h2>Perfect Match Birthdays</h2>${dates.join("<br>")}`
-    : "No perfect matches found.";
-
-  /* LOCK SUBMISSION */
-  hasSubmitted = true;
-  btn.disabled = true;
-  btn.style.opacity = "0.6";
-  btn.style.cursor = "not-allowed";
-}
+  const D=s2.map(x=>x.d);
+  r.innerHTML=D.length?`<h2>${_0x[11]}</h2>`+D.join("<br>"):_0x[12];
+  S=true;b.disabled=true;b.style.opacity="0.6";b.style.cursor="not-allowed";
+};
+})();
 </script>
 
 </body>
