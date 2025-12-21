@@ -125,8 +125,12 @@ button {
 <label>DATE OF BIRTH (UTC)</label>
 <input type="date" id="dob">
 
-<label>EMAIL</label>
-<input type="email" id="email">
+<!-- CAPTCHA -->
+<label id="captchaLabel"></label>
+<input type="text" id="captchaAnswer" placeholder="Your answer">
+
+<!-- HONEYPOT (HIDDEN) -->
+<input type="text" id="website" style="display:none">
 
 <button onclick="findMatches()">CHECK MATCHES</button>
 
@@ -139,6 +143,24 @@ const ORB = 8;
 
 let eph = [];
 let loaded = false;
+let captchaCorrect = "";
+let pageLoadTime = Date.now();
+
+/* CAPTCHA */
+function generateCaptcha() {
+  const questions = [
+    { q: "How many zodiac signs are there?", a: "12" },
+    { q: "What is 4 + 7?", a: "11" },
+    { q: "What is double of 6?", a: "12" },
+    { q: "What is 10 − 3?", a: "7" }
+  ];
+
+  const pick = questions[Math.floor(Math.random() * questions.length)];
+  captchaCorrect = pick.a;
+  document.getElementById("captchaLabel").innerText =
+    "ANTI-SPAM: " + pick.q;
+}
+generateCaptcha();
 
 /* LOAD EPHEMERIS */
 fetch(CSV)
@@ -173,6 +195,24 @@ function inRange(v, c){
 /* MATCH ENGINE */
 function findMatches(){
   const result = document.getElementById("result");
+
+  /* BOT TRAP */
+  if (document.getElementById("website").value !== "") {
+    return;
+  }
+
+  /* TIME CHECK */
+  if (Date.now() - pageLoadTime < 3000) {
+    result.innerHTML = "Please take a moment before submitting.";
+    return;
+  }
+
+  /* CAPTCHA CHECK */
+  if (document.getElementById("captchaAnswer").value.trim() !== captchaCorrect) {
+    result.innerHTML = "Incorrect anti-spam answer. Try again.";
+    generateCaptcha();
+    return;
+  }
 
   if(!loaded){
     result.innerHTML = "Loading ephemeris…";
