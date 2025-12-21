@@ -157,8 +157,7 @@ function generateCaptcha() {
   ];
   const pick = questions[Math.floor(Math.random() * questions.length)];
   captchaCorrect = pick.a;
-  document.getElementById("captchaLabel").innerText =
-    "ANTI-SPAM: " + pick.q;
+  document.getElementById("captchaLabel").innerText = pick.q;
 }
 generateCaptcha();
 
@@ -215,7 +214,7 @@ function findMatches(){
 
   /* CAPTCHA CHECK */
   if (document.getElementById("captchaAnswer").value.trim() !== captchaCorrect) {
-    result.innerHTML = "Incorrect anti-spam answer. Try again.";
+    result.innerHTML = "Incorrect answer. Try again.";
     generateCaptcha();
     return;
   }
