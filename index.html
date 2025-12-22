@@ -216,7 +216,7 @@ window.findMatches=function(){
     s2=s1.filter(x=>_a(x.sun,B.venus));
   }
 
-  const D=s2.map(x=>x.d);
+  const D = [...new Set(s2.map(x => x.d))];
   r.innerHTML=D.length?`<h2>${_0x[11]}</h2>`+D.join("<br>"):_0x[12];
 
   _s=true;
