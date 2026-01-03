@@ -146,16 +146,18 @@ button {
 <button id="submitBtn" onclick="findMatches()">CHECK MATCHES</button>
 
 <!-- COPY BUTTON (hidden initially, right aligned) -->
-<div id="copyWrap" style="display:none; justify-content:flex-end; width:100%; margin-bottom:6px;">
+<div id="copyWrap" style="display:none; margin-bottom:6px;">
   <button onclick="copyResults()" style="
-    background:none;
-    border:none;
-    color:#ffffff;
-    font-size:12px;
-    cursor:pointer;
-  ">
-    📋 COPY
-  </button>
+  background:none;
+  border:none;
+  color:#ffffff;
+  font-size:12px;
+  cursor:pointer;
+  margin-left:auto;
+  display:block;
+">
+  📋 COPY
+</button>
 </div>
 
 <div id="result"></div>
