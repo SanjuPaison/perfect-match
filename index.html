@@ -145,6 +145,18 @@ button {
 
 <button id="submitBtn" onclick="findMatches()">CHECK MATCHES</button>
 
+<div id="copyWrap" style="display:none; text-align:right; margin-bottom:6px;">
+  <button onclick="copyResults()" style="
+    background:none;
+    border:none;
+    color:#ffffff;
+    font-size:12px;
+    cursor:pointer;
+  ">
+    📋 COPY
+  </button>
+</div>
+  
 <div id="result"></div>
 
 <div class="site-link">
@@ -153,6 +165,11 @@ button {
 </div>
 
 <script>
+function copyResults() {
+  const text = document.getElementById("result").innerText;
+  navigator.clipboard.writeText(text);
+}
+  
 (function(){
 const _0x=["ephemeris_3hour_1940_2030.csv","Date_UTC","Sun_Longitude","Moon_Longitude","Venus_Longitude","You have already checked your matches.","Please take a moment before submitting.","Incorrect answer. Try again.","Loading ephemeris…","Please select a birth date.","Birth date not found in ephemeris range.","Perfect Match Birthdays","No perfect matches found."];
 let _e=[],_l=false,_c="",_t=Date.now(),_s=false;
@@ -219,6 +236,7 @@ window.findMatches=function(){
   const D = [...new Set(s2.map(x => x.d))];
   r.innerHTML=D.length?`<h2>${_0x[11]}</h2>`+D.join("<br>"):_0x[12];
 
+  document.getElementById("copyWrap").style.display = "block";
   _s=true;
   b.disabled=true;
   b.style.opacity="0.6";
