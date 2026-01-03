@@ -145,7 +145,7 @@ button {
 
 <button id="submitBtn" onclick="findMatches()">CHECK MATCHES</button>
 
-<div id="copyWrap" style="display:none; text-align:right; margin-bottom:6px;">
+<div id="copyWrap" style="display:none; display:flex; justify-content:flex-end; margin-bottom:6px;">
   <button onclick="copyResults()" style="
     background:none;
     border:none;
@@ -242,7 +242,7 @@ window.findMatches=function(){
   b.style.cursor="not-allowed";
 };
 })();
-    document.getElementById("copyWrap").style.display = "block";
+    document.getElementById("copyWrap").style.display = "flex";
 </script>
 
 </body>
