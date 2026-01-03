@@ -145,7 +145,7 @@ button {
 
 <button id="submitBtn" onclick="findMatches()">CHECK MATCHES</button>
 
-<div id="copyWrap" style="display:none; display:flex; justify-content:flex-end; margin-bottom:6px;">
+<div id="copyWrap" style="display:none; text-align:right; margin-bottom:6px;">
   <button onclick="copyResults()" style="
     background:none;
     border:none;
@@ -153,7 +153,7 @@ button {
     font-size:12px;
     cursor:pointer;
   ">
-    COPY
+    📋 COPY
   </button>
 </div>
   
@@ -171,7 +171,7 @@ function copyResults() {
 }
   
 (function(){
-const _0x=["ephemeris_3hour_1940_2030.csv","Date_UTC","Sun_Longitude","Moon_Longitude","Venus_Longitude","You have already checked your matches.","Please take a moment before submitting.","Incorrect answer. Try again.","Loading ephemerisâ€¦","Please select a birth date.","Birth date not found in ephemeris range.","Perfect Match Birthdays","No perfect matches found."];
+const _0x=["ephemeris_3hour_1940_2030.csv","Date_UTC","Sun_Longitude","Moon_Longitude","Venus_Longitude","You have already checked your matches.","Please take a moment before submitting.","Incorrect answer. Try again.","Loading ephemeris…","Please select a birth date.","Birth date not found in ephemeris range.","Perfect Match Birthdays","No perfect matches found."];
 let _e=[],_l=false,_c="",_t=Date.now(),_s=false;
 const ORB=6;
 
@@ -187,7 +187,7 @@ function _q(){
     ["How many zodiac signs are there?","12"],
     ["What is 4 + 7?","11"],
     ["What is double of 6?","12"],
-    ["What is 10 âˆ’ 3?","7"]
+    ["What is 10 − 3?","7"]
   ];
   const p=q[Math.floor(Math.random()*q.length)];
   _c=p[1];
@@ -242,7 +242,7 @@ window.findMatches=function(){
   b.style.cursor="not-allowed";
 };
 })();
-    document.getElementById("copyWrap").style.display = "flex";
+    document.getElementById("copyWrap").style.display = "block";
 </script>
 
 </body>
