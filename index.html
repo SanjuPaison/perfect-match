@@ -100,7 +100,7 @@ button {
   font-weight: 600;
 }
 
-  .site-link {
+.site-link {
   margin-top: 24px;
   font-weight: 600;
   text-align: center;
@@ -145,7 +145,8 @@ button {
 
 <button id="submitBtn" onclick="findMatches()">CHECK MATCHES</button>
 
-<div id="copyWrap" style="display:none; text-align:right; margin-bottom:6px;">
+<!-- COPY BUTTON (hidden initially, right aligned) -->
+<div id="copyWrap" style="display:none; display:flex; justify-content:flex-end; margin-bottom:6px;">
   <button onclick="copyResults()" style="
     background:none;
     border:none;
@@ -156,7 +157,7 @@ button {
     📋 COPY
   </button>
 </div>
-  
+
 <div id="result"></div>
 
 <div class="site-link">
@@ -165,11 +166,18 @@ button {
 </div>
 
 <script>
-function copyResults() {
-  const text = document.getElementById("result").innerText;
-  navigator.clipboard.writeText(text);
+function copyResults(){
+  const r = document.getElementById("result");
+  if(!r || !r.innerText.trim()) return;
+
+  const t = document.createElement("textarea");
+  t.value = r.innerText;
+  document.body.appendChild(t);
+  t.select();
+  document.execCommand("copy");
+  document.body.removeChild(t);
 }
-  
+
 (function(){
 const _0x=["ephemeris_3hour_1940_2030.csv","Date_UTC","Sun_Longitude","Moon_Longitude","Venus_Longitude","You have already checked your matches.","Please take a moment before submitting.","Incorrect answer. Try again.","Loading ephemeris…","Please select a birth date.","Birth date not found in ephemeris range.","Perfect Match Birthdays","No perfect matches found."];
 let _e=[],_l=false,_c="",_t=Date.now(),_s=false;
@@ -233,8 +241,11 @@ window.findMatches=function(){
     s2=s1.filter(x=>_a(x.sun,B.venus));
   }
 
-  const D = [...new Set(s2.map(x => x.d))];
+  const D=[...new Set(s2.map(x=>x.d))];
   r.innerHTML=D.length?`<h2>${_0x[11]}</h2>`+D.join("<br>"):_0x[12];
+
+  // SHOW COPY BUTTON ONLY AFTER RESULTS
+  document.getElementById("copyWrap").style.display="flex";
 
   _s=true;
   b.disabled=true;
@@ -242,7 +253,6 @@ window.findMatches=function(){
   b.style.cursor="not-allowed";
 };
 })();
-    document.getElementById("copyWrap").style.display = "block";
 </script>
 
 </body>
